@@ -141,7 +141,7 @@ class Chromecast extends Tech {
      * @param {Object=} src Source object
      * @method setSrc
      */
-   src (src) {}
+    src (src) {}
 
     currentSrc () {
         if (!this.apiMedia) {

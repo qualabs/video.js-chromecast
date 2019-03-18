@@ -75,7 +75,9 @@ var ChromeCastButton = (function (_Button) {
             var appId = undefined;
             var sessionRequest = undefined;
 
-            if (!_videoJs2['default'].browser.IS_CHROME || _videoJs2['default'].browser.IS_EDGE || typeof chrome === 'undefined') {
+            var user_agent = window.navigator && window.navigator.userAgent || '';
+            var is_chrome = _videoJs2['default'].browser.IS_CHROME || /CriOS/i.test(user_agent);
+            if (!is_chrome || _videoJs2['default'].browser.IS_EDGE || typeof chrome === 'undefined') {
                 return;
             }
             if (!chrome.cast || !chrome.cast.isAvailable) {
