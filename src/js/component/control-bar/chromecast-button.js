@@ -147,12 +147,17 @@ class ChromeCastButton extends Button {
 
 
         this.apiSession = session;
-        const source = this.player_.cache_.src;
+        const source = this.player_.cache_.source;
         const type = this.player_.currentType();
 
         videojs.log('Session initialized: ' + session.sessionId + ' source : ' + source + ' type : ' + type);
 
-        mediaInfo = new chrome.cast.media.MediaInfo(source, type);
+        mediaInfo = new chrome.cast.media.MediaInfo(source.src, source.type);
+
+        if (source.keySystemOptions) {
+          mediaInfo.customData = source.keySystemOptions[0];
+        }
+        
         mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
         if (this.options_.metadata) {
             ref = this.options_.metadata;
