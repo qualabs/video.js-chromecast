@@ -15,6 +15,8 @@ Object.defineProperty(exports, '__esModule', {
     value: true
 });
 
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
 var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
@@ -51,11 +53,14 @@ var ChromeCastButton = (function (_Button) {
 
         _classCallCheck(this, ChromeCastButton);
 
+        options.appId = player.options_.chromecast.appId;
+        options.metadata = player.options_.chromecast.metadata;
+
         _get(Object.getPrototypeOf(ChromeCastButton.prototype), 'constructor', this).call(this, player, options);
         this.hide();
         this.initializeApi();
-        options.appId = player.options_.chromecast.appId;
         player.chromecast = this;
+        this.customData = {};
 
         this.on(player, 'loadstart', function () {
             if (_this.casting && _this.apiInitialized) {
@@ -184,15 +189,25 @@ var ChromeCastButton = (function (_Button) {
             var value = undefined;
 
             this.apiSession = session;
-            var source = this.player_.cache_.src;
+            var source = this.player_.cache_.source;
             var type = this.player_.currentType();
 
             _videoJs2['default'].log('Session initialized: ' + session.sessionId + ' source : ' + source + ' type : ' + type);
 
-            mediaInfo = new chrome.cast.media.MediaInfo(source, type);
+            mediaInfo = new chrome.cast.media.MediaInfo(source.src, source.type);
+
+            //TOODO: esto hay que sacarlo porque se va a hacer el consume desde el receiver !, se deja para test tmp
+            if (source.keySystemOptions) {
+                mediaInfo.customData = source.keySystemOptions[0];
+            }
+
+            if (this.customData) {
+                mediaInfo.customData = _extends({}, mediaInfo.customData, this.customData);
+            }
+
             mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
-            if (this.options_.playerOptions.chromecast.metadata) {
-                ref = this.options_.playerOptions.chromecast.metadata;
+            if (this.options_.metadata) {
+                ref = this.options_.metadata;
                 for (key in ref) {
                     value = ref[key];
                     mediaInfo.metadata[key] = value;
@@ -332,8 +347,9 @@ var ChromeCastButton = (function (_Button) {
          */
     }, {
         key: 'handleClick',
-        value: function handleClick() {
-            _get(Object.getPrototypeOf(ChromeCastButton.prototype), 'handleClick', this).call(this);
+        value: function handleClick(customData) {
+            _get(Object.getPrototypeOf(ChromeCastButton.prototype), 'handleClick', this).call(this, customData);
+            this.customData = customData;
             if (this.casting) {
                 return this.stopCasting();
             } else {

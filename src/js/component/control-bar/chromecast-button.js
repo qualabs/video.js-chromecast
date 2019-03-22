@@ -26,6 +26,7 @@ class ChromeCastButton extends Button {
         this.hide();
         this.initializeApi();
         player.chromecast = this;
+        this.customData = {}
 
         this.on(player, 'loadstart', () => {
           if (this.casting && this.apiInitialized) {
@@ -154,10 +155,15 @@ class ChromeCastButton extends Button {
 
         mediaInfo = new chrome.cast.media.MediaInfo(source.src, source.type);
 
+        //TOODO: esto hay que sacarlo porque se va a hacer el consume desde el receiver !, se deja para test tmp
         if (source.keySystemOptions) {
           mediaInfo.customData = source.keySystemOptions[0];
         }
-        
+
+        if (this.customData) {
+          mediaInfo.customData = {...mediaInfo.customData, ...this.customData}
+        }
+
         mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
         if (this.options_.metadata) {
             ref = this.options_.metadata;
@@ -293,8 +299,9 @@ class ChromeCastButton extends Button {
      * Handle click on mute
      * @method handleClick
      */
-    handleClick () {
-        super.handleClick();
+    handleClick (customData) {
+        super.handleClick(customData);
+        this.customData = customData
         if (this.casting) {
             return this.stopCasting();
         } else {
