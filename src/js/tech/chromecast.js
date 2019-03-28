@@ -86,9 +86,11 @@ class Chromecast extends Tech {
 
     }
 
-    loadAudioTracks () {
+    loadTracks () {
+      this.cleanupAutoTextTracks();
+      
       const tracks = this.apiMedia.media.tracks;
-      const activeTracksId = this.apiMedia.activeTracksId;
+      const activeTracksId = this.apiMedia.activeTrackIds;
 
       tracks.forEach((track) => {
         const isActive = activeTracksId.indexOf(track.trackId) > -1;
@@ -236,7 +238,7 @@ class Chromecast extends Tech {
         for (let i = 0; i < tracks.length; i++) {
             let track = tracks[i];
             if (track.mode === 'showing') {
-                trackInfo.push(i + 1);
+                trackInfo.push(track.id);
             }
         }
 

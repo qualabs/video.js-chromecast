@@ -114,12 +114,14 @@ var Chromecast = (function (_Tech) {
     }
 
     _createClass(Chromecast, [{
-        key: 'loadAudioTracks',
-        value: function loadAudioTracks() {
+        key: 'loadTracks',
+        value: function loadTracks() {
             var _this2 = this;
 
+            this.cleanupAutoTextTracks();
+
             var tracks = this.apiMedia.media.tracks;
-            var activeTracksId = this.apiMedia.activeTracksId;
+            var activeTracksId = this.apiMedia.activeTrackIds;
 
             tracks.forEach(function (track) {
                 var isActive = activeTracksId.indexOf(track.trackId) > -1;
@@ -277,7 +279,7 @@ var Chromecast = (function (_Tech) {
             for (var i = 0; i < tracks.length; i++) {
                 var track = tracks[i];
                 if (track.mode === 'showing') {
-                    trackInfo.push(i + 1);
+                    trackInfo.push(track.id);
                 }
             }
 
