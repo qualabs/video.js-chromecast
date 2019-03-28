@@ -49,7 +49,7 @@ class Chromecast extends Tech {
                 tracks.removeEventListener('change', changeHandler);
             });
 
-            this.handleTextTracksChange();
+            this.handleTracksChange();
         }
 
         try {
@@ -196,13 +196,13 @@ class Chromecast extends Tech {
       let audioTracks = this.audioTracks().tracks_;
       let textTracks = this.textTracks().tracks_;
 
-      audioTracks.forEach((t) => {
+      audioTracks.tracks_.forEach((t) => {
         if (t.enabled) {
             trackInfo.push(t.id);
         }
       });
 
-      textTracks.forEach((t) => {
+      textTracks.tracks_.forEach((t) => {
         if (t.mode === 'showing') {
             trackInfo.push(t.id);
         }
