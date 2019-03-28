@@ -41,7 +41,7 @@ class Chromecast extends Tech {
 
         let tracks = this.textTracks();
         if (tracks) {
-            let changeHandler = ::this.handleTextTracksChange;
+            let changeHandler = ::this.handleTracksChange;
 
             tracks.addEventListener('change', changeHandler);
             this.on('dispose', function () {
@@ -54,7 +54,7 @@ class Chromecast extends Tech {
         try {
             tracks = this.audioTracks();
             if (tracks) {
-                let changeHandler = ::this.handleAudioTracksChange;
+                let changeHandler = ::this.handleTracksChange;
 
                 tracks.addEventListener('change', changeHandler);
                 this.on('dispose', function () {
@@ -66,29 +66,14 @@ class Chromecast extends Tech {
             videojs.log('get player audioTracks fail' + e);
         }
 
-        try {
-            tracks = this.videoTracks();
-            if (tracks) {
-                let changeHandler = ::this.handleVideoTracksChange;
-
-                tracks.addEventListener('change', changeHandler);
-                this.on('dispose', function () {
-                    tracks.removeEventListener('change', changeHandler);
-                });
-
-            }
-        } catch (e) {
-            videojs.log('get player videoTracks fail' + e);
-        }
-
         this.update();
         this.triggerReady();
 
     }
 
     loadTracks () {
-      this.cleanupAutoTextTracks();
-      
+      this.cleanupTracks_();
+
       const tracks = this.apiMedia.media.tracks;
       const activeTracksId = this.apiMedia.activeTrackIds;
 
@@ -103,6 +88,14 @@ class Chromecast extends Tech {
           this.createTextTrack_(track, isActive);
         }
       })
+    }
+
+    cleanupTracks_ () {
+      const txtTracks = this.textTracks();
+      const remoteTxtTracks = this.remoteTextTracks();
+
+      txtTracks.forEach((track) => {this.removeTextTrack(track)});
+      remoteTxtTracks.forEach((track) => {this.removeRemoteTextTrack(track)});
     }
 
     createAudioTrack_ (track, isActive) {
@@ -201,51 +194,27 @@ class Chromecast extends Tech {
         return this.apiMedia.media.contentId;
     }
 
-    handleAudioTracksChange () {
-        let trackInfo = [];
-        let tracks = this.audioTracks();
+    handleTracksChange () {
+      let trackInfo = [];
+      let audioTracks = this.audioTracks();
+      let textTracks = this.textTracks();
 
-        if (!tracks) {
-            return;
+      audioTracks.forEach((t) => {
+        if (t.enabled) {
+            trackInfo.push(t.id);
         }
+      });
 
-        for (let i = 0; i < tracks.length; i++) {
-            let track = tracks[i];
-            if (track.enabled) {
-                //set id of cuurentTrack audio
-                trackInfo.push(track.id);
-            }
+      textTracks.forEach((t) => {
+        if (t.mode === 'showing') {
+            trackInfo.push(t.id);
         }
+      });
 
-        if (this.apiMedia && trackInfo.length) {
-            this.tracksInfoRequest = new chrome.cast.media.EditTracksInfoRequest(trackInfo);
-            return this.apiMedia.editTracksInfo(this.tracksInfoRequest, ::this.onTrackSuccess, ::this.onTrackError);
-        }
-    }
-
-    handleVideoTracksChange () {
-
-    }
-
-    handleTextTracksChange () {
-        let trackInfo = [];
-        let tracks = this.textTracks();
-
-        if (!tracks) {
-            return;
-        }
-
-        for (let i = 0; i < tracks.length; i++) {
-            let track = tracks[i];
-            if (track.mode === 'showing') {
-                trackInfo.push(track.id);
-            }
-        }
-
-        if (this.apiMedia && trackInfo.length) {
-            this.tracksInfoRequest = new chrome.cast.media.EditTracksInfoRequest(trackInfo);
-            return this.apiMedia.editTracksInfo(this.tracksInfoRequest, ::this.onTrackSuccess, ::this.onTrackError);
-        }
+      if (this.apiMedia && trackInfo.length) {
+          this.tracksInfoRequest = new chrome.cast.media.EditTracksInfoRequest(trackInfo);
+          return this.apiMedia.editTracksInfo(this.tracksInfoRequest, ::this.onTrackSuccess, ::this.onTrackError);
+      }
     }
 
     onTrackSuccess () {

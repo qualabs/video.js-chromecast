@@ -405,7 +405,7 @@ var Chromecast = (function (_Tech) {
         var tracks = this.textTracks();
         if (tracks) {
             (function () {
-                var changeHandler = _this.handleTextTracksChange.bind(_this);
+                var changeHandler = _this.handleTracksChange.bind(_this);
 
                 tracks.addEventListener('change', changeHandler);
                 _this.on('dispose', function () {
@@ -420,7 +420,7 @@ var Chromecast = (function (_Tech) {
             tracks = this.audioTracks();
             if (tracks) {
                 (function () {
-                    var changeHandler = _this.handleAudioTracksChange.bind(_this);
+                    var changeHandler = _this.handleTracksChange.bind(_this);
 
                     tracks.addEventListener('change', changeHandler);
                     _this.on('dispose', function () {
@@ -432,22 +432,6 @@ var Chromecast = (function (_Tech) {
             _videoJs2['default'].log('get player audioTracks fail' + e);
         }
 
-        try {
-            tracks = this.videoTracks();
-            if (tracks) {
-                (function () {
-                    var changeHandler = _this.handleVideoTracksChange.bind(_this);
-
-                    tracks.addEventListener('change', changeHandler);
-                    _this.on('dispose', function () {
-                        tracks.removeEventListener('change', changeHandler);
-                    });
-                })();
-            }
-        } catch (e) {
-            _videoJs2['default'].log('get player videoTracks fail' + e);
-        }
-
         this.update();
         this.triggerReady();
     }
@@ -457,7 +441,7 @@ var Chromecast = (function (_Tech) {
         value: function loadTracks() {
             var _this2 = this;
 
-            this.cleanupAutoTextTracks();
+            this.cleanupTracks_();
 
             var tracks = this.apiMedia.media.tracks;
             var activeTracksId = this.apiMedia.activeTrackIds;
@@ -472,6 +456,21 @@ var Chromecast = (function (_Tech) {
                 if (track.type === chrome.cast.media.TrackType.TEXT) {
                     _this2.createTextTrack_(track, isActive);
                 }
+            });
+        }
+    }, {
+        key: 'cleanupTracks_',
+        value: function cleanupTracks_() {
+            var _this3 = this;
+
+            var txtTracks = this.textTracks();
+            var remoteTxtTracks = this.remoteTextTracks();
+
+            txtTracks.forEach(function (track) {
+                _this3.removeTextTrack(track);
+            });
+            remoteTxtTracks.forEach(function (track) {
+                _this3.removeRemoteTextTrack(track);
             });
         }
     }, {
@@ -580,47 +579,23 @@ var Chromecast = (function (_Tech) {
             return this.apiMedia.media.contentId;
         }
     }, {
-        key: 'handleAudioTracksChange',
-        value: function handleAudioTracksChange() {
+        key: 'handleTracksChange',
+        value: function handleTracksChange() {
             var trackInfo = [];
-            var tracks = this.audioTracks();
+            var audioTracks = this.audioTracks();
+            var textTracks = this.textTracks();
 
-            if (!tracks) {
-                return;
-            }
-
-            for (var i = 0; i < tracks.length; i++) {
-                var track = tracks[i];
-                if (track.enabled) {
-                    //set id of cuurentTrack audio
-                    trackInfo.push(track.id);
+            audioTracks.forEach(function (t) {
+                if (t.enabled) {
+                    trackInfo.push(t.id);
                 }
-            }
+            });
 
-            if (this.apiMedia && trackInfo.length) {
-                this.tracksInfoRequest = new chrome.cast.media.EditTracksInfoRequest(trackInfo);
-                return this.apiMedia.editTracksInfo(this.tracksInfoRequest, this.onTrackSuccess.bind(this), this.onTrackError.bind(this));
-            }
-        }
-    }, {
-        key: 'handleVideoTracksChange',
-        value: function handleVideoTracksChange() {}
-    }, {
-        key: 'handleTextTracksChange',
-        value: function handleTextTracksChange() {
-            var trackInfo = [];
-            var tracks = this.textTracks();
-
-            if (!tracks) {
-                return;
-            }
-
-            for (var i = 0; i < tracks.length; i++) {
-                var track = tracks[i];
-                if (track.mode === 'showing') {
-                    trackInfo.push(track.id);
+            textTracks.forEach(function (t) {
+                if (t.mode === 'showing') {
+                    trackInfo.push(t.id);
                 }
-            }
+            });
 
             if (this.apiMedia && trackInfo.length) {
                 this.tracksInfoRequest = new chrome.cast.media.EditTracksInfoRequest(trackInfo);
