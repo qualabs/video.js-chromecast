@@ -60,6 +60,9 @@ var Chromecast = (function (_Tech) {
             _this.onSessionUpdate(false);
         });
 
+        // Load to VideoJS Remote Audio and Text Tracks
+        this.loadTracks();
+
         var tracks = this.textTracks();
         if (tracks) {
             (function () {
@@ -111,9 +114,60 @@ var Chromecast = (function (_Tech) {
     }
 
     _createClass(Chromecast, [{
+        key: 'loadAudioTracks',
+        value: function loadAudioTracks() {
+            var _this2 = this;
+
+            var tracks = this.apiMedia.media.tracks;
+            var activeTracksId = this.apiMedia.activeTracksId;
+
+            tracks.forEach(function (track) {
+                var isActive = activeTracksId.indexOf(track.trackId) > -1;
+
+                if (track.type === chrome.cast.media.TrackType.AUDIO) {
+                    _this2.createAudioTrack_(track, isActive);
+                }
+
+                if (track.type === chrome.cast.media.TrackType.TEXT) {
+                    _this2.createTextTrack_(track, isActive);
+                }
+            });
+        }
+    }, {
+        key: 'createAudioTrack_',
+        value: function createAudioTrack_(track, isActive) {
+            var audioTrack = new _videoJs2['default'].AudioTrack({
+                id: track.trackId,
+                kind: 'translation',
+                label: track.language,
+                language: track.language,
+                enabled: isActive
+            });
+
+            this.audioTracks().addTrack(audioTrack);
+        }
+    }, {
+        key: 'createTextTrack_',
+        value: function createTextTrack_(track, isActive) {
+            var mode = isActive ? 'showing' : 'disabled';
+
+            var textTrack = new _videoJs2['default'].TextTrack({
+                id: track.trackId,
+                tech: this,
+                kind: 'subtitles',
+                mode: mode, // disabled, hidden, showing
+                label: track.language,
+                language: track.language,
+                srclang: track.language,
+                'default': false // Video.js will choose the first track that is marked as default and turn it on
+            });
+
+            this.textTracks().addTrack(textTrack);
+        }
+    }, {
         key: 'createEl',
         value: function createEl() {
-            var el = _videoJs2['default'].createEl('div', {
+            var el = _videoJs2['default'].dom.createEl('div', {
                 id: this.options_.techId,
                 className: 'vjs-tech vjs-tech-chromecast'
             });
@@ -188,7 +242,6 @@ var Chromecast = (function (_Tech) {
         key: 'handleAudioTracksChange',
         value: function handleAudioTracksChange() {
             var trackInfo = [];
-            var tTracks = this.textTracks();
             var tracks = this.audioTracks();
 
             if (!tracks) {
@@ -197,9 +250,9 @@ var Chromecast = (function (_Tech) {
 
             for (var i = 0; i < tracks.length; i++) {
                 var track = tracks[i];
-                if (track['enabled']) {
+                if (track.enabled) {
                     //set id of cuurentTrack audio
-                    trackInfo.push(i + 1 + tTracks.length);
+                    trackInfo.push(track.id);
                 }
             }
 
@@ -223,7 +276,7 @@ var Chromecast = (function (_Tech) {
 
             for (var i = 0; i < tracks.length; i++) {
                 var track = tracks[i];
-                if (track['mode'] === 'showing') {
+                if (track.mode === 'showing') {
                     trackInfo.push(i + 1);
                 }
             }

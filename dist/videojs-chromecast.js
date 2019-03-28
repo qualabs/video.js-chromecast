@@ -220,57 +220,11 @@ var ChromeCastButton = (function (_Button) {
                 mediaInfo.metadata.images = [image];
             }
 
-            // Load/Add caption tracks
-            var plTracks = this.player().textTracks();
-            var remotePlTracks = this.player().remoteTextTrackEls();
-            var tracks = [];
-            var i = 0;
-            var remotePlTrack = undefined;
-            var plTrack = undefined;
-            var trackId = 0;
-            var track = undefined;
-            if (plTracks) {
-                for (i = 0; i < plTracks.length; i++) {
-                    plTrack = plTracks.tracks_[i];
-                    remotePlTrack = remotePlTracks && remotePlTracks.trackElements_ && remotePlTracks.trackElements_[i];
-                    trackId++;
-                    track = new chrome.cast.media.Track(trackId, chrome.cast.media.TrackType.TEXT);
-                    track.trackContentId = remotePlTrack ? remotePlTrack.src : 'caption_' + plTrack.language;
-                    track.subtype = chrome.cast.media.TextTrackType.CAPTIONS;
-                    track.name = plTrack.label;
-                    track.language = plTrack.language;
-                    track.customData = null;
-                    tracks.push(track);
-                }
-                mediaInfo.textTrackStyle = new chrome.cast.media.TextTrackStyle();
-                mediaInfo.textTrackStyle.foregroundColor = '#FFFFFF';
-                mediaInfo.textTrackStyle.backgroundColor = '#00000060';
-                mediaInfo.textTrackStyle.edgeType = chrome.cast.media.TextTrackEdgeType.DROP_SHADOW;
-                mediaInfo.textTrackStyle.windowType = chrome.cast.media.TextTrackWindowType.ROUNDED_CORNERS;
-            }
-            // Load/Add audio tracks
-
-            try {
-                plTracks = this.player().audioTracks();
-                if (plTracks) {
-                    for (i = 0; i < plTracks.length; i++) {
-                        plTrack = plTracks.tracks_[i];
-                        trackId++;
-                        track = new chrome.cast.media.Track(trackId, chrome.cast.media.TrackType.AUDIO);
-                        track.subtype = null;
-                        track.name = plTrack.label;
-                        track.language = plTrack.language;
-                        track.customData = null;
-                        tracks.push(track);
-                    }
-                }
-            } catch (e) {
-                _videoJs2['default'].log('get player audioTracks fail' + e);
-            }
-
-            if (tracks.length) {
-                mediaInfo.tracks = tracks;
-            }
+            // mediaInfo.textTrackStyle = new chrome.cast.media.TextTrackStyle();
+            // mediaInfo.textTrackStyle.foregroundColor = '#FFFFFF';
+            // mediaInfo.textTrackStyle.backgroundColor = '#00000000';
+            // mediaInfo.textTrackStyle.edgeType = chrome.cast.media.TextTrackEdgeType.DROP_SHADOW;
+            // mediaInfo.textTrackStyle.windowType = chrome.cast.media.TextTrackWindowType.ROUNDED_CORNERS;
 
             // Request load media source
             loadRequest = new chrome.cast.media.LoadRequest(mediaInfo);
@@ -438,6 +392,9 @@ var Chromecast = (function (_Tech) {
             _this.onSessionUpdate(false);
         });
 
+        // Load to VideoJS Remote Audio and Text Tracks
+        this.loadTracks();
+
         var tracks = this.textTracks();
         if (tracks) {
             (function () {
@@ -489,9 +446,60 @@ var Chromecast = (function (_Tech) {
     }
 
     _createClass(Chromecast, [{
+        key: 'loadAudioTracks',
+        value: function loadAudioTracks() {
+            var _this2 = this;
+
+            var tracks = this.apiMedia.media.tracks;
+            var activeTracksId = this.apiMedia.activeTracksId;
+
+            tracks.forEach(function (track) {
+                var isActive = activeTracksId.indexOf(track.trackId) > -1;
+
+                if (track.type === chrome.cast.media.TrackType.AUDIO) {
+                    _this2.createAudioTrack_(track, isActive);
+                }
+
+                if (track.type === chrome.cast.media.TrackType.TEXT) {
+                    _this2.createTextTrack_(track, isActive);
+                }
+            });
+        }
+    }, {
+        key: 'createAudioTrack_',
+        value: function createAudioTrack_(track, isActive) {
+            var audioTrack = new _videoJs2['default'].AudioTrack({
+                id: track.trackId,
+                kind: 'translation',
+                label: track.language,
+                language: track.language,
+                enabled: isActive
+            });
+
+            this.audioTracks().addTrack(audioTrack);
+        }
+    }, {
+        key: 'createTextTrack_',
+        value: function createTextTrack_(track, isActive) {
+            var mode = isActive ? 'showing' : 'disabled';
+
+            var textTrack = new _videoJs2['default'].TextTrack({
+                id: track.trackId,
+                tech: this,
+                kind: 'subtitles',
+                mode: mode, // disabled, hidden, showing
+                label: track.language,
+                language: track.language,
+                srclang: track.language,
+                'default': false // Video.js will choose the first track that is marked as default and turn it on
+            });
+
+            this.textTracks().addTrack(textTrack);
+        }
+    }, {
         key: 'createEl',
         value: function createEl() {
-            var el = _videoJs2['default'].createEl('div', {
+            var el = _videoJs2['default'].dom.createEl('div', {
                 id: this.options_.techId,
                 className: 'vjs-tech vjs-tech-chromecast'
             });
@@ -566,7 +574,6 @@ var Chromecast = (function (_Tech) {
         key: 'handleAudioTracksChange',
         value: function handleAudioTracksChange() {
             var trackInfo = [];
-            var tTracks = this.textTracks();
             var tracks = this.audioTracks();
 
             if (!tracks) {
@@ -575,9 +582,9 @@ var Chromecast = (function (_Tech) {
 
             for (var i = 0; i < tracks.length; i++) {
                 var track = tracks[i];
-                if (track['enabled']) {
+                if (track.enabled) {
                     //set id of cuurentTrack audio
-                    trackInfo.push(i + 1 + tTracks.length);
+                    trackInfo.push(track.id);
                 }
             }
 
@@ -601,7 +608,7 @@ var Chromecast = (function (_Tech) {
 
             for (var i = 0; i < tracks.length; i++) {
                 var track = tracks[i];
-                if (track['mode'] === 'showing') {
+                if (track.mode === 'showing') {
                     trackInfo.push(i + 1);
                 }
             }

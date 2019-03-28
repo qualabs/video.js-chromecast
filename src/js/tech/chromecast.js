@@ -36,6 +36,9 @@ class Chromecast extends Tech {
           this.onSessionUpdate(false);
         });
 
+        // Load to VideoJS Remote Audio and Text Tracks
+        this.loadTracks();
+
         let tracks = this.textTracks();
         if (tracks) {
             let changeHandler = ::this.handleTextTracksChange;
@@ -83,8 +86,54 @@ class Chromecast extends Tech {
 
     }
 
+    loadAudioTracks () {
+      const tracks = this.apiMedia.media.tracks;
+      const activeTracksId = this.apiMedia.activeTracksId;
+
+      tracks.forEach((track) => {
+        const isActive = activeTracksId.indexOf(track.trackId) > -1;
+
+        if (track.type === chrome.cast.media.TrackType.AUDIO) {
+          this.createAudioTrack_(track, isActive);
+        }
+
+        if (track.type === chrome.cast.media.TrackType.TEXT) {
+          this.createTextTrack_(track, isActive);
+        }
+      })
+    }
+
+    createAudioTrack_ (track, isActive) {
+      const audioTrack = new videojs.AudioTrack({
+        id: track.trackId,
+        kind: 'translation',
+        label: track.language,
+        language: track.language,
+        enabled: isActive
+      });
+
+      this.audioTracks().addTrack(audioTrack);
+    }
+
+    createTextTrack_ (track, isActive) {
+      const mode = isActive ? 'showing' : 'disabled';
+
+      const textTrack = new videojs.TextTrack({
+        id: track.trackId,
+        tech: this,
+        kind: 'subtitles',
+        mode: mode, // disabled, hidden, showing
+        label: track.language,
+        language: track.language,
+        srclang: track.language,
+        default: false // Video.js will choose the first track that is marked as default and turn it on
+      });
+
+      this.textTracks().addTrack(textTrack);
+    }
+
     createEl () {
-        let el = videojs.createEl('div', {
+        let el = videojs.dom.createEl('div', {
             id: this.options_.techId,
             className: 'vjs-tech vjs-tech-chromecast'
         });
@@ -152,7 +201,6 @@ class Chromecast extends Tech {
 
     handleAudioTracksChange () {
         let trackInfo = [];
-        let tTracks = this.textTracks();
         let tracks = this.audioTracks();
 
         if (!tracks) {
@@ -161,9 +209,9 @@ class Chromecast extends Tech {
 
         for (let i = 0; i < tracks.length; i++) {
             let track = tracks[i];
-            if (track['enabled']) {
+            if (track.enabled) {
                 //set id of cuurentTrack audio
-                trackInfo.push((i + 1) + tTracks.length);
+                trackInfo.push(track.id);
             }
         }
 
@@ -187,7 +235,7 @@ class Chromecast extends Tech {
 
         for (let i = 0; i < tracks.length; i++) {
             let track = tracks[i];
-            if (track['mode'] === 'showing') {
+            if (track.mode === 'showing') {
                 trackInfo.push(i + 1);
             }
         }

@@ -180,57 +180,11 @@ class ChromeCastButton extends Button {
             mediaInfo.metadata.images = [image];
         }
 
-        // Load/Add caption tracks
-        let plTracks = this.player().textTracks();
-        const remotePlTracks = this.player().remoteTextTrackEls();
-        let tracks = [];
-        let i = 0;
-        let remotePlTrack;
-        let plTrack;
-        let trackId = 0;
-        let track;
-        if (plTracks) {
-            for (i = 0; i < plTracks.length; i++) {
-                plTrack = plTracks.tracks_[i];
-                remotePlTrack = remotePlTracks && remotePlTracks.trackElements_ && remotePlTracks.trackElements_[i];
-                trackId++;
-                track = new chrome.cast.media.Track(trackId, chrome.cast.media.TrackType.TEXT);
-                track.trackContentId = remotePlTrack ? remotePlTrack.src : 'caption_' + plTrack.language;
-                track.subtype = chrome.cast.media.TextTrackType.CAPTIONS;
-                track.name = plTrack.label;
-                track.language = plTrack.language;
-                track.customData = null;
-                tracks.push(track);
-            }
-            mediaInfo.textTrackStyle = new chrome.cast.media.TextTrackStyle();
-            mediaInfo.textTrackStyle.foregroundColor = '#FFFFFF';
-            mediaInfo.textTrackStyle.backgroundColor = '#00000060';
-            mediaInfo.textTrackStyle.edgeType = chrome.cast.media.TextTrackEdgeType.DROP_SHADOW;
-            mediaInfo.textTrackStyle.windowType = chrome.cast.media.TextTrackWindowType.ROUNDED_CORNERS;
-        }
-        // Load/Add audio tracks
-
-        try {
-            plTracks = this.player().audioTracks();
-            if (plTracks) {
-                for (i = 0; i < plTracks.length; i++) {
-                    plTrack = plTracks.tracks_[i];
-                    trackId++;
-                    track = new chrome.cast.media.Track(trackId, chrome.cast.media.TrackType.AUDIO);
-                    track.subtype = null;
-                    track.name = plTrack.label;
-                    track.language = plTrack.language;
-                    track.customData = null;
-                    tracks.push(track);
-                }
-            }
-        } catch (e) {
-            videojs.log('get player audioTracks fail' + e);
-        }
-
-        if (tracks.length) {
-            mediaInfo.tracks = tracks;
-        }
+        // mediaInfo.textTrackStyle = new chrome.cast.media.TextTrackStyle();
+        // mediaInfo.textTrackStyle.foregroundColor = '#FFFFFF';
+        // mediaInfo.textTrackStyle.backgroundColor = '#00000000';
+        // mediaInfo.textTrackStyle.edgeType = chrome.cast.media.TextTrackEdgeType.DROP_SHADOW;
+        // mediaInfo.textTrackStyle.windowType = chrome.cast.media.TextTrackWindowType.ROUNDED_CORNERS;
 
         // Request load media source
         loadRequest = new chrome.cast.media.LoadRequest(mediaInfo);
