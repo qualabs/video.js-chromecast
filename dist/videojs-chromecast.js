@@ -385,6 +385,7 @@ var Chromecast = (function (_Tech) {
         this.apiMedia = this.options_.source.apiMedia;
         this.apiSession = this.options_.source.apiSession;
         this.receiver = this.apiSession.receiver.friendlyName;
+        this.activeTracks = null;
 
         var mediaStatusUpdateHandler = this.onMediaStatusUpdate.bind(this);
         var sessionUpdateHanlder = this.onSessionUpdate.bind(this);
@@ -441,8 +442,6 @@ var Chromecast = (function (_Tech) {
         value: function loadTracks() {
             var _this2 = this;
 
-            this.cleanupTracks_();
-
             var tracks = this.apiMedia.media.tracks;
             var activeTracksId = this.apiMedia.activeTrackIds;
 
@@ -456,21 +455,6 @@ var Chromecast = (function (_Tech) {
                 if (track.type === chrome.cast.media.TrackType.TEXT) {
                     _this2.createTextTrack_(track, isActive);
                 }
-            });
-        }
-    }, {
-        key: 'cleanupTracks_',
-        value: function cleanupTracks_() {
-            var _this3 = this;
-
-            var txtTracks = this.textTracks();
-            var remoteTxtTracks = this.remoteTextTracks();
-
-            txtTracks.forEach(function (track) {
-                _this3.removeTextTrack(track);
-            });
-            remoteTxtTracks.forEach(function (track) {
-                _this3.removeRemoteTextTrack(track);
             });
         }
     }, {
@@ -540,6 +524,12 @@ var Chromecast = (function (_Tech) {
             if (!this.apiMedia) {
                 return;
             }
+
+            if (!this.activeTracks || this.activeTracks !== this.apiMedia.activeTrackIds) {
+                this.onActiveTrackChange(this.apiMedia.activeTrackIds);
+                this.activeTracks = this.apiMedia.activeTrackIds;
+            }
+
             switch (this.apiMedia.playerState) {
                 case chrome.cast.media.PlayerState.BUFFERING:
                     this.trigger('waiting');
@@ -582,8 +572,8 @@ var Chromecast = (function (_Tech) {
         key: 'handleTracksChange',
         value: function handleTracksChange() {
             var trackInfo = [];
-            var audioTracks = this.audioTracks();
-            var textTracks = this.textTracks();
+            var audioTracks = this.audioTracks().tracks_;
+            var textTracks = this.textTracks().tracks_;
 
             audioTracks.forEach(function (t) {
                 if (t.enabled) {
@@ -601,6 +591,28 @@ var Chromecast = (function (_Tech) {
                 this.tracksInfoRequest = new chrome.cast.media.EditTracksInfoRequest(trackInfo);
                 return this.apiMedia.editTracksInfo(this.tracksInfoRequest, this.onTrackSuccess.bind(this), this.onTrackError.bind(this));
             }
+        }
+    }, {
+        key: 'onActiveTrackChange',
+        value: function onActiveTrackChange(activeTrackIds) {
+            var audioTracks = this.audioTracks().tracks_;
+            var textTracks = this.textTracks().tracks_;
+
+            audioTracks.forEach(function (t) {
+                if (activeTrackIds.indexOf(t.id) > -1) {
+                    t.enabled = true;
+                } else {
+                    t.enabled = false;
+                }
+            });
+
+            textTracks.forEach(function (t) {
+                if (activeTrackIds.indexOf(t.id) > -1) {
+                    t.mode = 'showing';
+                } else {
+                    t.mode = 'disabled';
+                }
+            });
         }
     }, {
         key: 'onTrackSuccess',

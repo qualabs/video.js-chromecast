@@ -22,6 +22,7 @@ class Chromecast extends Tech {
         this.apiMedia = this.options_.source.apiMedia;
         this.apiSession = this.options_.source.apiSession;
         this.receiver = this.apiSession.receiver.friendlyName;
+        this.activeTracks = null;
 
         let mediaStatusUpdateHandler = ::this.onMediaStatusUpdate;
         let sessionUpdateHanlder = ::this.onSessionUpdate;
@@ -72,8 +73,6 @@ class Chromecast extends Tech {
     }
 
     loadTracks () {
-      this.cleanupTracks_();
-
       const tracks = this.apiMedia.media.tracks;
       const activeTracksId = this.apiMedia.activeTrackIds;
 
@@ -88,14 +87,6 @@ class Chromecast extends Tech {
           this.createTextTrack_(track, isActive);
         }
       })
-    }
-
-    cleanupTracks_ () {
-      const txtTracks = this.textTracks();
-      const remoteTxtTracks = this.remoteTextTracks();
-
-      txtTracks.forEach((track) => {this.removeTextTrack(track)});
-      remoteTxtTracks.forEach((track) => {this.removeRemoteTextTrack(track)});
     }
 
     createAudioTrack_ (track, isActive) {
@@ -157,6 +148,12 @@ class Chromecast extends Tech {
         if (!this.apiMedia) {
             return;
         }
+
+        if (!this.activeTracks || this.activeTracks !== this.apiMedia.activeTrackIds){
+            this.onActiveTrackChange(this.apiMedia.activeTrackIds);
+            this.activeTracks = this.apiMedia.activeTrackIds;
+        }
+
         switch (this.apiMedia.playerState) {
             case chrome.cast.media.PlayerState.BUFFERING:
                 this.trigger('waiting');
@@ -196,8 +193,8 @@ class Chromecast extends Tech {
 
     handleTracksChange () {
       let trackInfo = [];
-      let audioTracks = this.audioTracks();
-      let textTracks = this.textTracks();
+      let audioTracks = this.audioTracks().tracks_;
+      let textTracks = this.textTracks().tracks_;
 
       audioTracks.forEach((t) => {
         if (t.enabled) {
@@ -215,6 +212,27 @@ class Chromecast extends Tech {
           this.tracksInfoRequest = new chrome.cast.media.EditTracksInfoRequest(trackInfo);
           return this.apiMedia.editTracksInfo(this.tracksInfoRequest, ::this.onTrackSuccess, ::this.onTrackError);
       }
+    }
+
+    onActiveTrackChange (activeTrackIds) {
+      let audioTracks = this.audioTracks().tracks_;
+      let textTracks = this.textTracks().tracks_;
+
+      audioTracks.forEach((t) => {
+        if (activeTrackIds.indexOf(t.id) > -1) {
+            t.enabled = true;
+        } else {
+          t.enabled = false;
+        }
+      });
+
+      textTracks.forEach((t) => {
+        if (activeTrackIds.indexOf(t.id) > -1) {
+          t.mode = 'showing';
+        } else {
+          t.mode = 'disabled';
+        }
+      });
     }
 
     onTrackSuccess () {
