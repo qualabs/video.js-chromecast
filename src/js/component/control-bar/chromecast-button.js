@@ -197,11 +197,16 @@ class ChromeCastButton extends Button {
     }
 
     onMediaDiscovered (media) {
+
+      this.oldTech = this.player_.techName_
+      this.oldSrc = this.player_.currentSource()
+
         this.player_.loadTech_('Chromecast', {
             type: 'cast',
             apiMedia: media,
             apiSession: this.apiSession
         });
+
 
         this.casting = true;
         this.inactivityTimeout = this.player_.options_.inactivityTimeout;
@@ -225,17 +230,20 @@ class ChromeCastButton extends Button {
     }
 
     onStopAppSuccess () {
-        this.casting = false;
+        let paused = this.player_.paused();
         let time = this.player_.currentTime();
+        this.casting = false;
+        this.player_.loadTech_(this.oldTech);
         this.removeClass('connected');
-        this.player_.src(this.player_.options_['sources']);
-        if (!this.player_.paused()) {
+        this.player_.src(this.oldSrc);
+        if (!paused) {
             this.player_.one('seeked', function () {
                 return this.player_.play();
             });
         }
         this.player_.currentTime(time);
         this.player_.options_.inactivityTimeout = this.inactivityTimeout;
+        this.player_.trigger('seeked');
         return this.apiSession = null;
     }
 

@@ -563,14 +563,14 @@ Chromecast.prototype['featuresProgressEvents'] = false;
  *
  * @type {Boolean}
  */
-Chromecast.prototype['featuresNativeTextTracks'] = true;
+Chromecast.prototype['featuresNativeTextTracks'] = false;
 
 /*
  * Sets the tech's status on native audio track support
  *
  * @type {Boolean}
  */
-Chromecast.prototype['featuresNativeAudioTracks'] = true;
+Chromecast.prototype['featuresNativeAudioTracks'] = false;
 
 /*
  * Sets the tech's status on native video track support
