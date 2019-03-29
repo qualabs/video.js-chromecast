@@ -62,11 +62,11 @@ var ChromeCastButton = (function (_Button) {
         player.chromecast = this;
         this.customData = {};
 
-        this.on(player, 'loadstart', function () {
-            if (_this.casting && _this.apiInitialized) {
-                _this.onSessionSuccess(_this.apiSession);
-            }
-        });
+        // this.on(player, 'loadstart', () => {
+        //   if (this.casting && this.apiInitialized) {
+        //     this.onSessionSuccess(this.apiSession);
+        //   }
+        // });
 
         this.on(player, 'dispose', function () {
             if (_this.casting && _this.apiSession) {
@@ -170,10 +170,15 @@ var ChromeCastButton = (function (_Button) {
         }
     }, {
         key: 'doLaunch',
-        value: function doLaunch() {
+        value: function doLaunch(customData) {
+            this.customData = customData;
             _videoJs2['default'].log('Cast video: ' + this.player_.cache_.src);
             if (this.apiInitialized) {
-                return chrome.cast.requestSession(this.onSessionSuccess.bind(this), this.castError.bind(this));
+                if (this.casting) {
+                    return this.onSessionSuccess(this.apiSession);
+                } else {
+                    return chrome.cast.requestSession(this.onSessionSuccess.bind(this), this.castError.bind(this));
+                }
             } else {
                 return _videoJs2['default'].log('Session not initialized');
             }
@@ -312,11 +317,10 @@ var ChromeCastButton = (function (_Button) {
         key: 'handleClick',
         value: function handleClick(customData) {
             _get(Object.getPrototypeOf(ChromeCastButton.prototype), 'handleClick', this).call(this, customData);
-            this.customData = customData;
             if (this.casting) {
                 return this.stopCasting();
             } else {
-                return this.doLaunch();
+                return this.doLaunch(customData);
             }
         }
     }]);
@@ -527,10 +531,10 @@ var Chromecast = (function (_Tech) {
                 return;
             }
 
-            if (!this.activeTracks || this.activeTracks !== this.apiMedia.activeTrackIds) {
-                this.onActiveTrackChange(this.apiMedia.activeTrackIds);
-                this.activeTracks = this.apiMedia.activeTrackIds;
-            }
+            // if (!this.activeTracks || this.activeTracks !== this.apiMedia.activeTrackIds){
+            //     this.onActiveTrackChange(this.apiMedia.activeTrackIds);
+            //     this.activeTracks = this.apiMedia.activeTrackIds;
+            // }
 
             switch (this.apiMedia.playerState) {
                 case chrome.cast.media.PlayerState.BUFFERING:

@@ -28,11 +28,11 @@ class ChromeCastButton extends Button {
         player.chromecast = this;
         this.customData = {}
 
-        this.on(player, 'loadstart', () => {
-          if (this.casting && this.apiInitialized) {
-            this.onSessionSuccess(this.apiSession);
-          }
-        });
+        // this.on(player, 'loadstart', () => {
+        //   if (this.casting && this.apiInitialized) {
+        //     this.onSessionSuccess(this.apiSession);
+        //   }
+        // });
 
         this.on(player, 'dispose', () => {
           if (this.casting && this.apiSession) {
@@ -129,10 +129,15 @@ class ChromeCastButton extends Button {
         }
     }
 
-    doLaunch () {
+    doLaunch (customData) {
+        this.customData = customData;
         videojs.log('Cast video: ' + (this.player_.cache_.src));
         if (this.apiInitialized) {
-            return chrome.cast.requestSession(::this.onSessionSuccess, ::this.castError);
+            if (this.casting) {
+              return this.onSessionSuccess(this.apiSession);
+            } else {
+              return chrome.cast.requestSession(::this.onSessionSuccess, ::this.castError);
+            }
         } else {
             return videojs.log('Session not initialized');
         }
@@ -265,11 +270,10 @@ class ChromeCastButton extends Button {
      */
     handleClick (customData) {
         super.handleClick(customData);
-        this.customData = customData
         if (this.casting) {
             return this.stopCasting();
         } else {
-            return this.doLaunch();
+            return this.doLaunch(customData);
         }
     }
 }
