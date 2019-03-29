@@ -196,13 +196,13 @@ class Chromecast extends Tech {
       let audioTracks = this.audioTracks().tracks_;
       let textTracks = this.textTracks().tracks_;
 
-      audioTracks.tracks_.forEach((t) => {
+      audioTracks.forEach((t) => {
         if (t.enabled) {
             trackInfo.push(t.id);
         }
       });
 
-      textTracks.tracks_.forEach((t) => {
+      textTracks.forEach((t) => {
         if (t.mode === 'showing') {
             trackInfo.push(t.id);
         }

@@ -74,7 +74,7 @@ var Chromecast = (function (_Tech) {
                     tracks.removeEventListener('change', changeHandler);
                 });
 
-                _this.handleTextTracksChange();
+                _this.handleTracksChange();
             })();
         }
 

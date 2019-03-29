@@ -220,11 +220,11 @@ var ChromeCastButton = (function (_Button) {
                 mediaInfo.metadata.images = [image];
             }
 
-            // mediaInfo.textTrackStyle = new chrome.cast.media.TextTrackStyle();
-            // mediaInfo.textTrackStyle.foregroundColor = '#FFFFFF';
-            // mediaInfo.textTrackStyle.backgroundColor = '#00000000';
-            // mediaInfo.textTrackStyle.edgeType = chrome.cast.media.TextTrackEdgeType.DROP_SHADOW;
-            // mediaInfo.textTrackStyle.windowType = chrome.cast.media.TextTrackWindowType.ROUNDED_CORNERS;
+            mediaInfo.textTrackStyle = new chrome.cast.media.TextTrackStyle();
+            mediaInfo.textTrackStyle.foregroundColor = '#FFFFFF';
+            mediaInfo.textTrackStyle.backgroundColor = '#00000060';
+            mediaInfo.textTrackStyle.edgeType = chrome.cast.media.TextTrackEdgeType.DROP_SHADOW;
+            mediaInfo.textTrackStyle.windowType = chrome.cast.media.TextTrackWindowType.ROUNDED_CORNERS;
 
             // Request load media source
             loadRequest = new chrome.cast.media.LoadRequest(mediaInfo);
@@ -252,6 +252,7 @@ var ChromeCastButton = (function (_Button) {
             this.inactivityTimeout = this.player_.options_.inactivityTimeout;
             this.player_.options_.inactivityTimeout = 0;
             this.player_.userActive(true);
+            this.player_.trigger('castConnected');
             this.addClass('connected');
             this.removeClass('error');
         }
@@ -287,6 +288,7 @@ var ChromeCastButton = (function (_Button) {
             this.player_.currentTime(time);
             this.player_.options_.inactivityTimeout = this.inactivityTimeout;
             this.player_.trigger('seeked');
+            this.player_.trigger('castDisconnected');
             return this.apiSession = null;
         }
 
@@ -413,7 +415,7 @@ var Chromecast = (function (_Tech) {
                     tracks.removeEventListener('change', changeHandler);
                 });
 
-                _this.handleTextTracksChange();
+                _this.handleTracksChange();
             })();
         }
 
