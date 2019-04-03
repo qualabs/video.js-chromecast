@@ -193,11 +193,6 @@ var ChromeCastButton = (function (_Button) {
 
             mediaInfo = new chrome.cast.media.MediaInfo(source.src, source.type);
 
-            //TOODO: esto hay que sacarlo porque se va a hacer el consume desde el receiver !, se deja para test tmp
-            if (source.keySystemOptions) {
-                mediaInfo.customData = source.keySystemOptions[0];
-            }
-
             if (this.customData) {
                 mediaInfo.customData = _extends({}, mediaInfo.customData, this.customData);
             }
@@ -276,7 +271,12 @@ var ChromeCastButton = (function (_Button) {
             this.casting = false;
             this.player_.loadTech_(this.oldTech);
             this.removeClass('connected');
-            this.player_.src(this.oldSrc);
+            /*
+            Se comenta debido a que en nuestro caso no aplica ya que debemos hacer
+            conusme cada vez que queremos reproducir un contenido. @Emil, si queres
+            puchear al repo de benji hay que descomentar para que sea reutilizable.
+            */
+            // this.player_.src(this.oldSrc);
             if (!paused) {
                 this.player_.one('seeked', function () {
                     return this.player_.play();
