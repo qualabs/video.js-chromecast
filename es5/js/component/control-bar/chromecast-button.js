@@ -274,7 +274,7 @@ var ChromeCastButton = (function (_Button) {
             /*
             Se comenta debido a que en nuestro caso no aplica ya que debemos hacer
             conusme cada vez que queremos reproducir un contenido. @Emil, si queres
-            puchear al repo de benji hay que descomentar para que sea reutilizable.
+            pushear al repo de benji hay que descomentar para que sea reutilizable.
             */
             // this.player_.src(this.oldSrc);
             if (!paused) {

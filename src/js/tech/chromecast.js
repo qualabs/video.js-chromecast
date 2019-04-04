@@ -24,6 +24,7 @@ class Chromecast extends Tech {
         this.receiver = this.apiSession.receiver.friendlyName;
         this.activeTracks = null;
 
+        this.changeHandler = ::this.handleTracksChange;
         let mediaStatusUpdateHandler = ::this.onMediaStatusUpdate;
         let sessionUpdateHanlder = ::this.onSessionUpdate;
 
@@ -39,33 +40,6 @@ class Chromecast extends Tech {
 
         // Load to VideoJS Remote Audio and Text Tracks
         this.loadTracks();
-
-        let tracks = this.textTracks();
-        if (tracks) {
-            let changeHandler = ::this.handleTracksChange;
-
-            tracks.addEventListener('change', changeHandler);
-            this.on('dispose', function () {
-                tracks.removeEventListener('change', changeHandler);
-            });
-
-            this.handleTracksChange();
-        }
-
-        try {
-            tracks = this.audioTracks();
-            if (tracks) {
-                let changeHandler = ::this.handleTracksChange;
-
-                tracks.addEventListener('change', changeHandler);
-                this.on('dispose', function () {
-                    tracks.removeEventListener('change', changeHandler);
-                });
-
-            }
-        } catch (e) {
-            videojs.log('get player audioTracks fail' + e);
-        }
 
         this.update();
         this.triggerReady();
@@ -87,6 +61,22 @@ class Chromecast extends Tech {
           this.createTextTrack_(track, isActive);
         }
       })
+
+      let playerTracks = this.textTracks();
+      if (playerTracks) {
+        playerTracks.addEventListener('change', this.changeHandler);
+        this.on('dispose', function () {
+            playerTracks.removeEventListener('change', this.changeHandler);
+        });
+      }
+
+      playerTracks = this.audioTracks();
+      if (playerTracks) {
+        playerTracks.addEventListener('change', this.changeHandler);
+        this.on('dispose', function () {
+            playerTracks.removeEventListener('change', this.changeHandler);
+        });
+      }
     }
 
     createAudioTrack_ (track, isActive) {
@@ -215,24 +205,32 @@ class Chromecast extends Tech {
     }
 
     onActiveTrackChange (activeTrackIds) {
-      let audioTracks = this.audioTracks().tracks_;
-      let textTracks = this.textTracks().tracks_;
+      let audioTracks = this.audioTracks();
+      let textTracks = this.textTracks();
 
-      audioTracks.forEach((t) => {
+      // removeEventListener because when we set the activeTracks, the event
+      // handleTracksChange fires and it enters in loop.
+      audioTracks.removeEventListener('change', this.changeHandler);
+      textTracks.removeEventListener('change', this.changeHandler);
+
+      audioTracks.tracks_.forEach((t) => {
         if (activeTrackIds.indexOf(t.id) > -1) {
-            t.enabled = true;
+          t.enabled = true;
         } else {
           t.enabled = false;
         }
       });
 
-      textTracks.forEach((t) => {
+      textTracks.tracks_.forEach((t) => {
         if (activeTrackIds.indexOf(t.id) > -1) {
           t.mode = 'showing';
         } else {
           t.mode = 'disabled';
         }
       });
+
+      audioTracks.addEventListener('change', this.changeHandler);
+      textTracks.addEventListener('change', this.changeHandler);
     }
 
     onTrackSuccess () {
