@@ -149,10 +149,10 @@ class Chromecast extends Tech {
             return;
         }
 
-        // if (!this.activeTracks || this.activeTracks !== this.apiMedia.activeTrackIds){
-        //     this.onActiveTrackChange(this.apiMedia.activeTrackIds);
-        //     this.activeTracks = this.apiMedia.activeTrackIds;
-        // }
+        if (!this.activeTracks || JOSN.stringify(this.activeTracks.sort()) !== JOSN.stringify(this.apiMedia.activeTrackIds.sort())){
+            this.onActiveTrackChange(this.apiMedia.activeTrackIds);
+            this.activeTracks = this.apiMedia.activeTrackIds;
+        }
 
         switch (this.apiMedia.playerState) {
             case chrome.cast.media.PlayerState.BUFFERING:
