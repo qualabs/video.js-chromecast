@@ -149,7 +149,7 @@ class Chromecast extends Tech {
             return;
         }
 
-        if (!this.activeTracks || JOSN.stringify(this.activeTracks.sort()) !== JOSN.stringify(this.apiMedia.activeTrackIds.sort())){
+        if (!this.activeTracks || JSON.stringify(this.activeTracks.sort()) !== JSON.stringify(this.apiMedia.activeTrackIds.sort())){
             this.onActiveTrackChange(this.apiMedia.activeTrackIds);
             this.activeTracks = this.apiMedia.activeTrackIds;
         }
