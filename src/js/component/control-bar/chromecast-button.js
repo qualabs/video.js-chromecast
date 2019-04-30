@@ -192,14 +192,15 @@ class ChromeCastButton extends Button {
         loadRequest.autoplay = true;
         loadRequest.currentTime = this.player_.currentTime();
 
+        // Force to JS to make a deep copy of String
+        this.oldTech = (' ' + this.player_.techName_).slice(1)
+        this.oldSrc = this.player_.currentSource()
+
         this.apiSession.loadMedia(loadRequest, ::this.onMediaDiscovered, ::this.castError);
         this.apiSession.addUpdateListener(::this.onSessionUpdate);
     }
 
     onMediaDiscovered (media) {
-
-      this.oldTech = this.player_.techName_
-      this.oldSrc = this.player_.currentSource()
 
         this.player_.loadTech_('Chromecast', {
             type: 'cast',

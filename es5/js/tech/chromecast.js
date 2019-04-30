@@ -246,6 +246,8 @@ var Chromecast = (function (_Tech) {
             var audioTracks = this.audioTracks();
             var textTracks = this.textTracks();
 
+            // removeEventListener because when we set the activeTracks, the event
+            // handleTracksChange fires and it enters in loop.
             audioTracks.removeEventListener('change', this.changeHandler);
             textTracks.removeEventListener('change', this.changeHandler);
 

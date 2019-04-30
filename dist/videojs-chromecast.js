@@ -232,15 +232,16 @@ var ChromeCastButton = (function (_Button) {
             loadRequest.autoplay = true;
             loadRequest.currentTime = this.player_.currentTime();
 
+            // Force to JS to make a deep copy of String
+            this.oldTech = (' ' + this.player_.techName_).slice(1);
+            this.oldSrc = this.player_.currentSource();
+
             this.apiSession.loadMedia(loadRequest, this.onMediaDiscovered.bind(this), this.castError.bind(this));
             this.apiSession.addUpdateListener(this.onSessionUpdate.bind(this));
         }
     }, {
         key: 'onMediaDiscovered',
         value: function onMediaDiscovered(media) {
-
-            this.oldTech = this.player_.techName_;
-            this.oldSrc = this.player_.currentSource();
 
             this.player_.loadTech_('Chromecast', {
                 type: 'cast',
@@ -591,6 +592,8 @@ var Chromecast = (function (_Tech) {
             var audioTracks = this.audioTracks();
             var textTracks = this.textTracks();
 
+            // removeEventListener because when we set the activeTracks, the event
+            // handleTracksChange fires and it enters in loop.
             audioTracks.removeEventListener('change', this.changeHandler);
             textTracks.removeEventListener('change', this.changeHandler);
 
