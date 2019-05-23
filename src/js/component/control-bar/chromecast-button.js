@@ -57,7 +57,7 @@ class ChromeCastButton extends Button {
 //        if (!is_chrome || videojs.browser.IS_EDGE || typeof chrome === 'undefined') {
 //            return;
 //        }
-        if (!chrome.cast || !chrome.cast.isAvailable) {
+        if (!chrome || !chrome.cast || !chrome.cast.isAvailable) {
             videojs.log('Cast APIs not available');
             if (this.tryingReconnect < 10) {
                 this.setTimeout(this.initializeApi, 1000);
