@@ -85,6 +85,8 @@ var ChromeCastButton = (function (_Button) {
             //        if (!is_chrome || videojs.browser.IS_EDGE || typeof chrome === 'undefined') {
             //            return;
             //        }
+            var chrome = window.chrome;
+
             if (!chrome || !chrome.cast || !chrome.cast.isAvailable) {
                 _videoJs2['default'].log('Cast APIs not available');
                 if (this.tryingReconnect < 10) {
