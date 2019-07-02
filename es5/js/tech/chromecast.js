@@ -46,7 +46,9 @@ var Chromecast = (function (_Tech) {
         this.apiMedia = this.options_.source.apiMedia;
         this.apiSession = this.options_.source.apiSession;
         this.receiver = this.apiSession.receiver.friendlyName;
+        this.activeTracks = null;
 
+        this.changeHandler = this.handleTracksChange.bind(this);
         var mediaStatusUpdateHandler = this.onMediaStatusUpdate.bind(this);
         var sessionUpdateHanlder = this.onSessionUpdate.bind(this);
 
@@ -60,60 +62,84 @@ var Chromecast = (function (_Tech) {
             _this.onSessionUpdate(false);
         });
 
-        var tracks = this.textTracks();
-        if (tracks) {
-            (function () {
-                var changeHandler = _this.handleTextTracksChange.bind(_this);
-
-                tracks.addEventListener('change', changeHandler);
-                _this.on('dispose', function () {
-                    tracks.removeEventListener('change', changeHandler);
-                });
-
-                _this.handleTextTracksChange();
-            })();
-        }
-
-        try {
-            tracks = this.audioTracks();
-            if (tracks) {
-                (function () {
-                    var changeHandler = _this.handleAudioTracksChange.bind(_this);
-
-                    tracks.addEventListener('change', changeHandler);
-                    _this.on('dispose', function () {
-                        tracks.removeEventListener('change', changeHandler);
-                    });
-                })();
-            }
-        } catch (e) {
-            _videoJs2['default'].log('get player audioTracks fail' + e);
-        }
-
-        try {
-            tracks = this.videoTracks();
-            if (tracks) {
-                (function () {
-                    var changeHandler = _this.handleVideoTracksChange.bind(_this);
-
-                    tracks.addEventListener('change', changeHandler);
-                    _this.on('dispose', function () {
-                        tracks.removeEventListener('change', changeHandler);
-                    });
-                })();
-            }
-        } catch (e) {
-            _videoJs2['default'].log('get player videoTracks fail' + e);
-        }
+        // Load to VideoJS Remote Audio and Text Tracks
+        this.loadTracks();
 
         this.update();
         this.triggerReady();
     }
 
     _createClass(Chromecast, [{
+        key: 'loadTracks',
+        value: function loadTracks() {
+            var _this2 = this;
+
+            var tracks = this.apiMedia.media.tracks;
+            var activeTracksId = this.apiMedia.activeTrackIds;
+
+            tracks.forEach(function (track) {
+                var isActive = activeTracksId.indexOf(track.trackId) > -1;
+
+                if (track.type === chrome.cast.media.TrackType.AUDIO) {
+                    _this2.createAudioTrack_(track, isActive);
+                }
+
+                if (track.type === chrome.cast.media.TrackType.TEXT) {
+                    _this2.createTextTrack_(track, isActive);
+                }
+            });
+
+            var playerTracks = this.textTracks();
+            if (playerTracks) {
+                playerTracks.addEventListener('change', this.changeHandler);
+                this.on('dispose', function () {
+                    playerTracks.removeEventListener('change', this.changeHandler);
+                });
+            }
+
+            playerTracks = this.audioTracks();
+            if (playerTracks) {
+                playerTracks.addEventListener('change', this.changeHandler);
+                this.on('dispose', function () {
+                    playerTracks.removeEventListener('change', this.changeHandler);
+                });
+            }
+        }
+    }, {
+        key: 'createAudioTrack_',
+        value: function createAudioTrack_(track, isActive) {
+            var audioTrack = new _videoJs2['default'].AudioTrack({
+                id: track.trackId,
+                kind: 'translation',
+                label: track.language,
+                language: track.language,
+                enabled: isActive
+            });
+
+            this.audioTracks().addTrack(audioTrack);
+        }
+    }, {
+        key: 'createTextTrack_',
+        value: function createTextTrack_(track, isActive) {
+            var mode = isActive ? 'showing' : 'disabled';
+
+            var textTrack = new _videoJs2['default'].TextTrack({
+                id: track.trackId,
+                tech: this,
+                kind: 'subtitles',
+                mode: mode, // disabled, hidden, showing
+                label: track.language,
+                language: track.language,
+                srclang: track.language,
+                'default': false // Video.js will choose the first track that is marked as default and turn it on
+            });
+
+            this.textTracks().addTrack(textTrack);
+        }
+    }, {
         key: 'createEl',
         value: function createEl() {
-            var el = _videoJs2['default'].createEl('div', {
+            var el = _videoJs2['default'].dom.createEl('div', {
                 id: this.options_.techId,
                 className: 'vjs-tech vjs-tech-chromecast'
             });
@@ -146,6 +172,12 @@ var Chromecast = (function (_Tech) {
             if (!this.apiMedia) {
                 return;
             }
+
+            if (!this.activeTracks || JSON.stringify(this.activeTracks.sort()) !== JSON.stringify(this.apiMedia.activeTrackIds.sort())) {
+                this.onActiveTrackChange(this.apiMedia.activeTrackIds);
+                this.activeTracks = this.apiMedia.activeTrackIds;
+            }
+
             switch (this.apiMedia.playerState) {
                 case chrome.cast.media.PlayerState.BUFFERING:
                     this.trigger('waiting');
@@ -185,23 +217,23 @@ var Chromecast = (function (_Tech) {
             return this.apiMedia.media.contentId;
         }
     }, {
-        key: 'handleAudioTracksChange',
-        value: function handleAudioTracksChange() {
+        key: 'handleTracksChange',
+        value: function handleTracksChange() {
             var trackInfo = [];
-            var tTracks = this.textTracks();
-            var tracks = this.audioTracks();
+            var audioTracks = this.audioTracks().tracks_;
+            var textTracks = this.textTracks().tracks_;
 
-            if (!tracks) {
-                return;
-            }
-
-            for (var i = 0; i < tracks.length; i++) {
-                var track = tracks[i];
-                if (track['enabled']) {
-                    //set id of cuurentTrack audio
-                    trackInfo.push(i + 1 + tTracks.length);
+            audioTracks.forEach(function (t) {
+                if (t.enabled) {
+                    trackInfo.push(t.id);
                 }
-            }
+            });
+
+            textTracks.forEach(function (t) {
+                if (t.mode === 'showing') {
+                    trackInfo.push(t.id);
+                }
+            });
 
             if (this.apiMedia && trackInfo.length) {
                 this.tracksInfoRequest = new chrome.cast.media.EditTracksInfoRequest(trackInfo);
@@ -209,29 +241,34 @@ var Chromecast = (function (_Tech) {
             }
         }
     }, {
-        key: 'handleVideoTracksChange',
-        value: function handleVideoTracksChange() {}
-    }, {
-        key: 'handleTextTracksChange',
-        value: function handleTextTracksChange() {
-            var trackInfo = [];
-            var tracks = this.textTracks();
+        key: 'onActiveTrackChange',
+        value: function onActiveTrackChange(activeTrackIds) {
+            var audioTracks = this.audioTracks();
+            var textTracks = this.textTracks();
 
-            if (!tracks) {
-                return;
-            }
+            // removeEventListener because when we set the activeTracks, the event
+            // handleTracksChange fires and it enters in loop.
+            audioTracks.removeEventListener('change', this.changeHandler);
+            textTracks.removeEventListener('change', this.changeHandler);
 
-            for (var i = 0; i < tracks.length; i++) {
-                var track = tracks[i];
-                if (track['mode'] === 'showing') {
-                    trackInfo.push(i + 1);
+            audioTracks.tracks_.forEach(function (t) {
+                if (activeTrackIds.indexOf(t.id) > -1) {
+                    t.enabled = true;
+                } else {
+                    t.enabled = false;
                 }
-            }
+            });
 
-            if (this.apiMedia && trackInfo.length) {
-                this.tracksInfoRequest = new chrome.cast.media.EditTracksInfoRequest(trackInfo);
-                return this.apiMedia.editTracksInfo(this.tracksInfoRequest, this.onTrackSuccess.bind(this), this.onTrackError.bind(this));
-            }
+            textTracks.tracks_.forEach(function (t) {
+                if (activeTrackIds.indexOf(t.id) > -1) {
+                    t.mode = 'showing';
+                } else {
+                    t.mode = 'disabled';
+                }
+            });
+
+            audioTracks.addEventListener('change', this.changeHandler);
+            textTracks.addEventListener('change', this.changeHandler);
         }
     }, {
         key: 'onTrackSuccess',
@@ -510,14 +547,14 @@ Chromecast.prototype['featuresProgressEvents'] = false;
  *
  * @type {Boolean}
  */
-Chromecast.prototype['featuresNativeTextTracks'] = true;
+Chromecast.prototype['featuresNativeTextTracks'] = false;
 
 /*
  * Sets the tech's status on native audio track support
  *
  * @type {Boolean}
  */
-Chromecast.prototype['featuresNativeAudioTracks'] = true;
+Chromecast.prototype['featuresNativeAudioTracks'] = false;
 
 /*
  * Sets the tech's status on native video track support

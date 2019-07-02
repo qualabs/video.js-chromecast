@@ -19,17 +19,20 @@ let hasReceiver = false;
 class ChromeCastButton extends Button {
 
     constructor (player, options) {
+        options.appId = player.options_.chromecast.appId;
+        options.metadata = player.options_.chromecast.metadata;
+
         super(player, options);
         this.hide();
         this.initializeApi();
-        options.appId = player.options_.chromecast.appId;
         player.chromecast = this;
+        this.customData = {}
 
-        this.on(player, 'loadstart', () => {
-          if (this.casting && this.apiInitialized) {
-            this.onSessionSuccess(this.apiSession);
-          }
-        });
+        // this.on(player, 'loadstart', () => {
+        //   if (this.casting && this.apiInitialized) {
+        //     this.onSessionSuccess(this.apiSession);
+        //   }
+        // });
 
         this.on(player, 'dispose', () => {
           if (this.casting && this.apiSession) {
@@ -49,12 +52,14 @@ class ChromeCastButton extends Button {
         let appId;
         let sessionRequest;
 
-        let user_agent = window.navigator && window.navigator.userAgent || ''
-        let is_chrome = videojs.browser.IS_CHROME || (/CriOS/i).test(user_agent)
-        if (!is_chrome || videojs.browser.IS_EDGE || typeof chrome === 'undefined') {
-            return;
-        }
-        if (!chrome.cast || !chrome.cast.isAvailable) {
+//        let user_agent = window.navigator && window.navigator.userAgent || ''
+//        let is_chrome = videojs.browser.IS_CHROME || (/CriOS/i).test(user_agent)
+//        if (!is_chrome || videojs.browser.IS_EDGE || typeof chrome === 'undefined') {
+//            return;
+//        }
+        let chrome = window.chrome
+
+        if (!chrome || !chrome.cast || !chrome.cast.isAvailable) {
             videojs.log('Cast APIs not available');
             if (this.tryingReconnect < 10) {
                 this.setTimeout(this.initializeApi, 1000);
@@ -126,10 +131,15 @@ class ChromeCastButton extends Button {
         }
     }
 
-    doLaunch () {
+    doLaunch (customData) {
+        this.customData = customData;
         videojs.log('Cast video: ' + (this.player_.cache_.src));
         if (this.apiInitialized) {
-            return chrome.cast.requestSession(::this.onSessionSuccess, ::this.castError);
+            if (this.casting) {
+              return this.onSessionSuccess(this.apiSession);
+            } else {
+              return chrome.cast.requestSession(::this.onSessionSuccess, ::this.castError);
+            }
         } else {
             return videojs.log('Session not initialized');
         }
@@ -145,15 +155,20 @@ class ChromeCastButton extends Button {
 
 
         this.apiSession = session;
-        const source = this.player_.cache_.src;
+        const source = this.player_.cache_.source || {src: 'casting', type: ''};
         const type = this.player_.currentType();
 
         videojs.log('Session initialized: ' + session.sessionId + ' source : ' + source + ' type : ' + type);
 
-        mediaInfo = new chrome.cast.media.MediaInfo(source, type);
+        mediaInfo = new chrome.cast.media.MediaInfo(source.src, source.type);
+
+        if (this.customData) {
+          mediaInfo.customData = {...mediaInfo.customData, ...this.customData}
+        }
+
         mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
-        if (this.options_.playerOptions.chromecast.metadata) {
-            ref = this.options_.playerOptions.chromecast.metadata;
+        if (this.options_.metadata) {
+            ref = this.options_.metadata;
             for (key in ref) {
                 value = ref[key];
                 mediaInfo.metadata[key] = value;
@@ -167,57 +182,11 @@ class ChromeCastButton extends Button {
             mediaInfo.metadata.images = [image];
         }
 
-        // Load/Add caption tracks
-        let plTracks = this.player().textTracks();
-        const remotePlTracks = this.player().remoteTextTrackEls();
-        let tracks = [];
-        let i = 0;
-        let remotePlTrack;
-        let plTrack;
-        let trackId = 0;
-        let track;
-        if (plTracks) {
-            for (i = 0; i < plTracks.length; i++) {
-                plTrack = plTracks.tracks_[i];
-                remotePlTrack = remotePlTracks && remotePlTracks.trackElements_ && remotePlTracks.trackElements_[i];
-                trackId++;
-                track = new chrome.cast.media.Track(trackId, chrome.cast.media.TrackType.TEXT);
-                track.trackContentId = remotePlTrack ? remotePlTrack.src : 'caption_' + plTrack.language;
-                track.subtype = chrome.cast.media.TextTrackType.CAPTIONS;
-                track.name = plTrack.label;
-                track.language = plTrack.language;
-                track.customData = null;
-                tracks.push(track);
-            }
-            mediaInfo.textTrackStyle = new chrome.cast.media.TextTrackStyle();
-            mediaInfo.textTrackStyle.foregroundColor = '#FFFFFF';
-            mediaInfo.textTrackStyle.backgroundColor = '#00000060';
-            mediaInfo.textTrackStyle.edgeType = chrome.cast.media.TextTrackEdgeType.DROP_SHADOW;
-            mediaInfo.textTrackStyle.windowType = chrome.cast.media.TextTrackWindowType.ROUNDED_CORNERS;
-        }
-        // Load/Add audio tracks
-
-        try {
-            plTracks = this.player().audioTracks();
-            if (plTracks) {
-                for (i = 0; i < plTracks.length; i++) {
-                    plTrack = plTracks.tracks_[i];
-                    trackId++;
-                    track = new chrome.cast.media.Track(trackId, chrome.cast.media.TrackType.AUDIO);
-                    track.subtype = null;
-                    track.name = plTrack.label;
-                    track.language = plTrack.language;
-                    track.customData = null;
-                    tracks.push(track);
-                }
-            }
-        } catch (e) {
-            videojs.log('get player audioTracks fail' + e);
-        }
-
-        if (tracks.length) {
-            mediaInfo.tracks = tracks;
-        }
+        mediaInfo.textTrackStyle = new chrome.cast.media.TextTrackStyle();
+        mediaInfo.textTrackStyle.foregroundColor = '#FFFFFF';
+        mediaInfo.textTrackStyle.backgroundColor = '#00000060';
+        mediaInfo.textTrackStyle.edgeType = chrome.cast.media.TextTrackEdgeType.DROP_SHADOW;
+        mediaInfo.textTrackStyle.windowType = chrome.cast.media.TextTrackWindowType.ROUNDED_CORNERS;
 
         // Request load media source
         loadRequest = new chrome.cast.media.LoadRequest(mediaInfo);
@@ -225,21 +194,28 @@ class ChromeCastButton extends Button {
         loadRequest.autoplay = true;
         loadRequest.currentTime = this.player_.currentTime();
 
+        // Force to JS to make a deep copy of String
+        this.oldTech = (' ' + this.player_.techName_).slice(1)
+        this.oldSrc = this.player_.currentSource()
+
         this.apiSession.loadMedia(loadRequest, ::this.onMediaDiscovered, ::this.castError);
         this.apiSession.addUpdateListener(::this.onSessionUpdate);
     }
 
     onMediaDiscovered (media) {
+
         this.player_.loadTech_('Chromecast', {
             type: 'cast',
             apiMedia: media,
             apiSession: this.apiSession
         });
 
+        this.player_.cache_.source = {src: media.media.contentId}
         this.casting = true;
         this.inactivityTimeout = this.player_.options_.inactivityTimeout;
         this.player_.options_.inactivityTimeout = 0;
         this.player_.userActive(true);
+        this.player_.trigger('castConnected');
         this.addClass('connected');
         this.removeClass('error');
     }
@@ -254,21 +230,36 @@ class ChromeCastButton extends Button {
     }
 
     stopCasting () {
-        return this.apiSession.stop(::this.onStopAppSuccess, ::this.castError);
+        const ret = this.apiSession.stop(::this.onStopAppSuccess, ::this.castError);
+
+        if (this.apiSession.status === 'stopped'){
+          this.onStopAppSuccess();
+        }
+
+        return ret;
     }
 
     onStopAppSuccess () {
-        this.casting = false;
+        let paused = this.player_.paused();
         let time = this.player_.currentTime();
+        this.casting = false;
+        this.player_.loadTech_(this.oldTech);
         this.removeClass('connected');
-        this.player_.src(this.player_.options_['sources']);
-        if (!this.player_.paused()) {
+        /*
+        Se comenta debido a que en nuestro caso no aplica ya que debemos hacer
+        conusme cada vez que queremos reproducir un contenido. @Emil, si queres
+        pushear al repo de benji hay que descomentar para que sea reutilizable.
+        */
+        // this.player_.src(this.oldSrc);
+        if (!paused) {
             this.player_.one('seeked', function () {
                 return this.player_.play();
             });
         }
         this.player_.currentTime(time);
         this.player_.options_.inactivityTimeout = this.inactivityTimeout;
+        this.player_.trigger('seeked');
+        this.player_.trigger('castDisconnected');
         return this.apiSession = null;
     }
 
@@ -286,12 +277,12 @@ class ChromeCastButton extends Button {
      * Handle click on mute
      * @method handleClick
      */
-    handleClick () {
-        super.handleClick();
+    handleClick (customData) {
+        super.handleClick(customData);
         if (this.casting) {
             return this.stopCasting();
         } else {
-            return this.doLaunch();
+            return this.doLaunch(customData);
         }
     }
 }

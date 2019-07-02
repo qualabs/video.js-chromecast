@@ -22,7 +22,9 @@ class Chromecast extends Tech {
         this.apiMedia = this.options_.source.apiMedia;
         this.apiSession = this.options_.source.apiSession;
         this.receiver = this.apiSession.receiver.friendlyName;
+        this.activeTracks = null;
 
+        this.changeHandler = ::this.handleTracksChange;
         let mediaStatusUpdateHandler = ::this.onMediaStatusUpdate;
         let sessionUpdateHanlder = ::this.onSessionUpdate;
 
@@ -36,55 +38,78 @@ class Chromecast extends Tech {
           this.onSessionUpdate(false);
         });
 
-        let tracks = this.textTracks();
-        if (tracks) {
-            let changeHandler = ::this.handleTextTracksChange;
-
-            tracks.addEventListener('change', changeHandler);
-            this.on('dispose', function () {
-                tracks.removeEventListener('change', changeHandler);
-            });
-
-            this.handleTextTracksChange();
-        }
-
-        try {
-            tracks = this.audioTracks();
-            if (tracks) {
-                let changeHandler = ::this.handleAudioTracksChange;
-
-                tracks.addEventListener('change', changeHandler);
-                this.on('dispose', function () {
-                    tracks.removeEventListener('change', changeHandler);
-                });
-
-            }
-        } catch (e) {
-            videojs.log('get player audioTracks fail' + e);
-        }
-
-        try {
-            tracks = this.videoTracks();
-            if (tracks) {
-                let changeHandler = ::this.handleVideoTracksChange;
-
-                tracks.addEventListener('change', changeHandler);
-                this.on('dispose', function () {
-                    tracks.removeEventListener('change', changeHandler);
-                });
-
-            }
-        } catch (e) {
-            videojs.log('get player videoTracks fail' + e);
-        }
+        // Load to VideoJS Remote Audio and Text Tracks
+        this.loadTracks();
 
         this.update();
         this.triggerReady();
 
     }
 
+    loadTracks () {
+      const tracks = this.apiMedia.media.tracks;
+      const activeTracksId = this.apiMedia.activeTrackIds;
+
+      tracks.forEach((track) => {
+        const isActive = activeTracksId.indexOf(track.trackId) > -1;
+
+        if (track.type === chrome.cast.media.TrackType.AUDIO) {
+          this.createAudioTrack_(track, isActive);
+        }
+
+        if (track.type === chrome.cast.media.TrackType.TEXT) {
+          this.createTextTrack_(track, isActive);
+        }
+      })
+
+      let playerTracks = this.textTracks();
+      if (playerTracks) {
+        playerTracks.addEventListener('change', this.changeHandler);
+        this.on('dispose', function () {
+            playerTracks.removeEventListener('change', this.changeHandler);
+        });
+      }
+
+      playerTracks = this.audioTracks();
+      if (playerTracks) {
+        playerTracks.addEventListener('change', this.changeHandler);
+        this.on('dispose', function () {
+            playerTracks.removeEventListener('change', this.changeHandler);
+        });
+      }
+    }
+
+    createAudioTrack_ (track, isActive) {
+      const audioTrack = new videojs.AudioTrack({
+        id: track.trackId,
+        kind: 'translation',
+        label: track.language,
+        language: track.language,
+        enabled: isActive
+      });
+
+      this.audioTracks().addTrack(audioTrack);
+    }
+
+    createTextTrack_ (track, isActive) {
+      const mode = isActive ? 'showing' : 'disabled';
+
+      const textTrack = new videojs.TextTrack({
+        id: track.trackId,
+        tech: this,
+        kind: 'subtitles',
+        mode: mode, // disabled, hidden, showing
+        label: track.language,
+        language: track.language,
+        srclang: track.language,
+        default: false // Video.js will choose the first track that is marked as default and turn it on
+      });
+
+      this.textTracks().addTrack(textTrack);
+    }
+
     createEl () {
-        let el = videojs.createEl('div', {
+        let el = videojs.dom.createEl('div', {
             id: this.options_.techId,
             className: 'vjs-tech vjs-tech-chromecast'
         });
@@ -113,6 +138,12 @@ class Chromecast extends Tech {
         if (!this.apiMedia) {
             return;
         }
+
+        if (!this.activeTracks || JSON.stringify(this.activeTracks.sort()) !== JSON.stringify(this.apiMedia.activeTrackIds.sort())){
+            this.onActiveTrackChange(this.apiMedia.activeTrackIds);
+            this.activeTracks = this.apiMedia.activeTrackIds;
+        }
+
         switch (this.apiMedia.playerState) {
             case chrome.cast.media.PlayerState.BUFFERING:
                 this.trigger('waiting');
@@ -141,7 +172,7 @@ class Chromecast extends Tech {
      * @param {Object=} src Source object
      * @method setSrc
      */
-   src (src) {}
+    src (src) {}
 
     currentSrc () {
         if (!this.apiMedia) {
@@ -150,52 +181,56 @@ class Chromecast extends Tech {
         return this.apiMedia.media.contentId;
     }
 
-    handleAudioTracksChange () {
-        let trackInfo = [];
-        let tTracks = this.textTracks();
-        let tracks = this.audioTracks();
+    handleTracksChange () {
+      let trackInfo = [];
+      let audioTracks = this.audioTracks().tracks_;
+      let textTracks = this.textTracks().tracks_;
 
-        if (!tracks) {
-            return;
+      audioTracks.forEach((t) => {
+        if (t.enabled) {
+            trackInfo.push(t.id);
         }
+      });
 
-        for (let i = 0; i < tracks.length; i++) {
-            let track = tracks[i];
-            if (track['enabled']) {
-                //set id of cuurentTrack audio
-                trackInfo.push((i + 1) + tTracks.length);
-            }
+      textTracks.forEach((t) => {
+        if (t.mode === 'showing') {
+            trackInfo.push(t.id);
         }
+      });
 
-        if (this.apiMedia && trackInfo.length) {
-            this.tracksInfoRequest = new chrome.cast.media.EditTracksInfoRequest(trackInfo);
-            return this.apiMedia.editTracksInfo(this.tracksInfoRequest, ::this.onTrackSuccess, ::this.onTrackError);
-        }
+      if (this.apiMedia && trackInfo.length) {
+          this.tracksInfoRequest = new chrome.cast.media.EditTracksInfoRequest(trackInfo);
+          return this.apiMedia.editTracksInfo(this.tracksInfoRequest, ::this.onTrackSuccess, ::this.onTrackError);
+      }
     }
 
-    handleVideoTracksChange () {
+    onActiveTrackChange (activeTrackIds) {
+      let audioTracks = this.audioTracks();
+      let textTracks = this.textTracks();
 
-    }
+      // removeEventListener because when we set the activeTracks, the event
+      // handleTracksChange fires and it enters in loop.
+      audioTracks.removeEventListener('change', this.changeHandler);
+      textTracks.removeEventListener('change', this.changeHandler);
 
-    handleTextTracksChange () {
-        let trackInfo = [];
-        let tracks = this.textTracks();
-
-        if (!tracks) {
-            return;
+      audioTracks.tracks_.forEach((t) => {
+        if (activeTrackIds.indexOf(t.id) > -1) {
+          t.enabled = true;
+        } else {
+          t.enabled = false;
         }
+      });
 
-        for (let i = 0; i < tracks.length; i++) {
-            let track = tracks[i];
-            if (track['mode'] === 'showing') {
-                trackInfo.push(i + 1);
-            }
+      textTracks.tracks_.forEach((t) => {
+        if (activeTrackIds.indexOf(t.id) > -1) {
+          t.mode = 'showing';
+        } else {
+          t.mode = 'disabled';
         }
+      });
 
-        if (this.apiMedia && trackInfo.length) {
-            this.tracksInfoRequest = new chrome.cast.media.EditTracksInfoRequest(trackInfo);
-            return this.apiMedia.editTracksInfo(this.tracksInfoRequest, ::this.onTrackSuccess, ::this.onTrackError);
-        }
+      audioTracks.addEventListener('change', this.changeHandler);
+      textTracks.addEventListener('change', this.changeHandler);
     }
 
     onTrackSuccess () {
@@ -454,14 +489,14 @@ Chromecast.prototype['featuresProgressEvents'] = false;
  *
  * @type {Boolean}
  */
-Chromecast.prototype['featuresNativeTextTracks'] = true;
+Chromecast.prototype['featuresNativeTextTracks'] = false;
 
 /*
  * Sets the tech's status on native audio track support
  *
  * @type {Boolean}
  */
-Chromecast.prototype['featuresNativeAudioTracks'] = true;
+Chromecast.prototype['featuresNativeAudioTracks'] = false;
 
 /*
  * Sets the tech's status on native video track support
