@@ -58,7 +58,7 @@ class ChromeCastButton extends Button {
 //            return;
 //        }
         let chrome = window.chrome
-        
+
         if (!chrome || !chrome.cast || !chrome.cast.isAvailable) {
             videojs.log('Cast APIs not available');
             if (this.tryingReconnect < 10) {
@@ -155,7 +155,7 @@ class ChromeCastButton extends Button {
 
 
         this.apiSession = session;
-        const source = this.player_.cache_.source;
+        const source = this.player_.cache_.source || {src: 'casting', type: ''};
         const type = this.player_.currentType();
 
         videojs.log('Session initialized: ' + session.sessionId + ' source : ' + source + ' type : ' + type);
@@ -210,7 +210,7 @@ class ChromeCastButton extends Button {
             apiSession: this.apiSession
         });
 
-
+        this.player_.cache_.source = {src: media.media.contentId}
         this.casting = true;
         this.inactivityTimeout = this.player_.options_.inactivityTimeout;
         this.player_.options_.inactivityTimeout = 0;
@@ -230,7 +230,13 @@ class ChromeCastButton extends Button {
     }
 
     stopCasting () {
-        return this.apiSession.stop(::this.onStopAppSuccess, ::this.castError);
+        const ret = this.apiSession.stop(::this.onStopAppSuccess, ::this.castError);
+
+        if (this.apiSession.status === 'stopped'){
+          this.onStopAppSuccess();
+        }
+
+        return ret;
     }
 
     onStopAppSuccess () {
