@@ -245,6 +245,8 @@ class ChromeCastButton extends Button {
     onStopAppSuccess () {
         let paused = this.player_.paused();
         let time = this.player_.currentTime();
+        let duration = this.player_.duration();
+
         this.casting = false;
         this.player_.loadTech_(this.oldTech);
         this.removeClass('connected');
@@ -254,14 +256,20 @@ class ChromeCastButton extends Button {
         pushear al repo de benji hay que descomentar para que sea reutilizable.
         */
         // this.player_.src(this.oldSrc);
+        
         if (!paused) {
             this.player_.one('seeked', function () {
                 return this.player_.play();
             });
         }
-        this.player_.currentTime(time);
+
+        // Detect if the current stream is a Live Stream
+        if (duration && !isNaN(duration) && duration !== Infinity) {
+          this.player_.currentTime(time);
+          this.player_.trigger('seeked');
+        }
+
         this.player_.options_.inactivityTimeout = this.inactivityTimeout;
-        this.player_.trigger('seeked');
         this.player_.trigger('castDisconnected');
         return this.apiSession = null;
     }
