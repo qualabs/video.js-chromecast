@@ -20,6 +20,7 @@ class ChromeCastButton extends Button {
     constructor (player, options) {
         options.appId = player.options_.chromecast.appId;
         options.receiverListener = player.options_.chromecast.receiverListener;
+        options.autoJoinPolicy = player.options_.chromecast.autoJoinPolicy;
         options.metadata = player.options_.chromecast.metadata;
 
         super(player, options);
@@ -29,11 +30,11 @@ class ChromeCastButton extends Button {
         this.customData = {}
         this.hasReceiver = false;
 
-        // this.on(player, 'loadstart', () => {
-        //   if (this.casting && this.apiInitialized) {
-        //     this.onSessionSuccess(this.apiSession);
-        //   }
-        // });
+        this.on(player, 'loadstart', () => {
+          if (this.casting && this.apiInitialized) {
+            this.onSessionSuccess(this.apiSession);
+          }
+        });
 
         this.on(player, 'dispose', () => {
           if (this.casting && this.apiSession) {
@@ -51,6 +52,7 @@ class ChromeCastButton extends Button {
     initializeApi () {
         let apiConfig;
         let appId;
+        let autoJoinPolicy;
         let sessionRequest;
 
 //        let user_agent = window.navigator && window.navigator.userAgent || ''
@@ -72,8 +74,9 @@ class ChromeCastButton extends Button {
 
         videojs.log('Cast APIs are available');
         appId = this.options_.appId || chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID;
+        autoJoinPolicy = this.options_.autoJoinPolicy || chrome.cast.AutoJoinPolicy.TAB_AND_ORIGIN_SCOPED;
         sessionRequest = new chrome.cast.SessionRequest(appId);
-        apiConfig = new chrome.cast.ApiConfig(sessionRequest, ::this.sessionJoinedListener, ::this.receiverListener);
+        apiConfig = new chrome.cast.ApiConfig(sessionRequest, ::this.sessionJoinedListener, ::this.receiverListener, autoJoinPolicy);
         return chrome.cast.initialize(apiConfig, ::this.onInitSuccess, ::this.castError);
     }
 
@@ -117,7 +120,8 @@ class ChromeCastButton extends Button {
     sessionJoinedListener (session) {
         if (session.media.length) {
             this.apiSession = session;
-            this.onMediaDiscovered(session.media[0]);
+            this.apiSession.addUpdateListener(::this.onSessionUpdate);
+            this.joinCastSession(session.media[0]);
         }
         return console.log('Session joined');
     }
@@ -205,7 +209,10 @@ class ChromeCastButton extends Button {
         this.apiSession.addUpdateListener(::this.onSessionUpdate);
     }
 
-    onMediaDiscovered (media) {
+    onMediaDiscovered (media, isAutoJoined) {
+        if (!isAutoJoined) {
+          isAutoJoined = false;
+        }
 
         this.player_.loadTech_('Chromecast', {
             type: 'cast',
@@ -218,18 +225,28 @@ class ChromeCastButton extends Button {
         this.inactivityTimeout = this.player_.options_.inactivityTimeout;
         this.player_.options_.inactivityTimeout = 0;
         this.player_.userActive(true);
-        this.player_.trigger('castConnected');
+        this.player_.trigger('castConnected', isAutoJoined);
         this.addClass('connected');
         this.removeClass('error');
     }
 
     onSessionUpdate (isAlive) {
-        if (!this.player_.apiMedia) {
-            return;
-        }
         if (!isAlive) {
             return this.onStopAppSuccess();
         }
+
+        if (this.apiMedia != this.apiSession.media[0]) {
+            this.joinCastSession(this.apiSession.media[0]);
+        }
+    }
+
+    joinCastSession (media) {
+      // Force to JS to make a deep copy of String
+      this.oldTech = (' ' + this.player_.techName_).slice(1);
+      this.oldSrc = this.player_.currentSource();
+
+      const isAutoJoined = true;
+      this.onMediaDiscovered(media, isAutoJoined);
     }
 
     stopCasting () {
@@ -256,7 +273,7 @@ class ChromeCastButton extends Button {
         pushear al repo de benji hay que descomentar para que sea reutilizable.
         */
         // this.player_.src(this.oldSrc);
-        
+
         if (!paused) {
             this.player_.one('seeked', function () {
                 return this.player_.play();

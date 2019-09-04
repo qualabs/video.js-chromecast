@@ -63,10 +63,11 @@ var Chromecast = (function (_Tech) {
         });
 
         // Load to VideoJS Remote Audio and Text Tracks
-        this.loadTracks();
-
-        this.update();
-        this.triggerReady();
+        this.one('playing', function () {
+            _this.loadTracks();
+            _this.update();
+            _this.triggerReady();
+        });
     }
 
     _createClass(Chromecast, [{
@@ -75,10 +76,10 @@ var Chromecast = (function (_Tech) {
             var _this2 = this;
 
             var tracks = this.apiMedia.media.tracks;
-            var activeTracksId = this.apiMedia.activeTrackIds;
+            var activeTracksIds = this.apiMedia.activeTrackIds;
 
             tracks.forEach(function (track) {
-                var isActive = activeTracksId.indexOf(track.trackId) > -1;
+                var isActive = activeTracksIds && activeTracksIds.indexOf(track.trackId) > -1;
 
                 if (track.type === chrome.cast.media.TrackType.AUDIO) {
                     _this2.createAudioTrack_(track, isActive);
@@ -174,7 +175,7 @@ var Chromecast = (function (_Tech) {
             }
 
             if (!this.activeTracks || JSON.stringify(this.activeTracks.sort()) !== JSON.stringify(this.apiMedia.activeTrackIds.sort())) {
-                this.onActiveTrackChange(this.apiMedia.activeTrackIds);
+                this.onActiveTrackChange(this.apiMedia.activeTrackIds || []);
                 this.activeTracks = this.apiMedia.activeTrackIds;
             }
 

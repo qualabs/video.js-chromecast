@@ -39,19 +39,19 @@ class Chromecast extends Tech {
         });
 
         // Load to VideoJS Remote Audio and Text Tracks
-        this.loadTracks();
-
-        this.update();
-        this.triggerReady();
-
+        this.one('playing', () => {
+          this.loadTracks();
+          this.update();
+          this.triggerReady();
+        });
     }
 
     loadTracks () {
       const tracks = this.apiMedia.media.tracks;
-      const activeTracksId = this.apiMedia.activeTrackIds;
+      const activeTracksIds = this.apiMedia.activeTrackIds;
 
       tracks.forEach((track) => {
-        const isActive = activeTracksId.indexOf(track.trackId) > -1;
+        const isActive = activeTracksIds && activeTracksIds.indexOf(track.trackId) > -1;
 
         if (track.type === chrome.cast.media.TrackType.AUDIO) {
           this.createAudioTrack_(track, isActive);
@@ -140,7 +140,7 @@ class Chromecast extends Tech {
         }
 
         if (!this.activeTracks || JSON.stringify(this.activeTracks.sort()) !== JSON.stringify(this.apiMedia.activeTrackIds.sort())){
-            this.onActiveTrackChange(this.apiMedia.activeTrackIds);
+            this.onActiveTrackChange(this.apiMedia.activeTrackIds || []);
             this.activeTracks = this.apiMedia.activeTrackIds;
         }
 

@@ -54,6 +54,7 @@ var ChromeCastButton = (function (_Button) {
 
         options.appId = player.options_.chromecast.appId;
         options.receiverListener = player.options_.chromecast.receiverListener;
+        options.autoJoinPolicy = player.options_.chromecast.autoJoinPolicy;
         options.metadata = player.options_.chromecast.metadata;
 
         _get(Object.getPrototypeOf(ChromeCastButton.prototype), 'constructor', this).call(this, player, options);
@@ -63,11 +64,11 @@ var ChromeCastButton = (function (_Button) {
         this.customData = {};
         this.hasReceiver = false;
 
-        // this.on(player, 'loadstart', () => {
-        //   if (this.casting && this.apiInitialized) {
-        //     this.onSessionSuccess(this.apiSession);
-        //   }
-        // });
+        this.on(player, 'loadstart', function () {
+            if (_this.casting && _this.apiInitialized) {
+                _this.onSessionSuccess(_this.apiSession);
+            }
+        });
 
         this.on(player, 'dispose', function () {
             if (_this.casting && _this.apiSession) {
@@ -87,6 +88,7 @@ var ChromeCastButton = (function (_Button) {
         value: function initializeApi() {
             var apiConfig = undefined;
             var appId = undefined;
+            var autoJoinPolicy = undefined;
             var sessionRequest = undefined;
 
             //        let user_agent = window.navigator && window.navigator.userAgent || ''
@@ -108,8 +110,9 @@ var ChromeCastButton = (function (_Button) {
 
             _videoJs2['default'].log('Cast APIs are available');
             appId = this.options_.appId || chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID;
+            autoJoinPolicy = this.options_.autoJoinPolicy || chrome.cast.AutoJoinPolicy.TAB_AND_ORIGIN_SCOPED;
             sessionRequest = new chrome.cast.SessionRequest(appId);
-            apiConfig = new chrome.cast.ApiConfig(sessionRequest, this.sessionJoinedListener.bind(this), this.receiverListener.bind(this));
+            apiConfig = new chrome.cast.ApiConfig(sessionRequest, this.sessionJoinedListener.bind(this), this.receiverListener.bind(this), autoJoinPolicy);
             return chrome.cast.initialize(apiConfig, this.onInitSuccess.bind(this), this.castError.bind(this));
         }
     }, {
@@ -156,7 +159,8 @@ var ChromeCastButton = (function (_Button) {
         value: function sessionJoinedListener(session) {
             if (session.media.length) {
                 this.apiSession = session;
-                this.onMediaDiscovered(session.media[0]);
+                this.apiSession.addUpdateListener(this.onSessionUpdate.bind(this));
+                this.joinCastSession(session.media[0]);
             }
             return console.log('Session joined');
         }
@@ -246,7 +250,10 @@ var ChromeCastButton = (function (_Button) {
         }
     }, {
         key: 'onMediaDiscovered',
-        value: function onMediaDiscovered(media) {
+        value: function onMediaDiscovered(media, isAutoJoined) {
+            if (!isAutoJoined) {
+                isAutoJoined = false;
+            }
 
             this.player_.loadTech_('Chromecast', {
                 type: 'cast',
@@ -259,19 +266,30 @@ var ChromeCastButton = (function (_Button) {
             this.inactivityTimeout = this.player_.options_.inactivityTimeout;
             this.player_.options_.inactivityTimeout = 0;
             this.player_.userActive(true);
-            this.player_.trigger('castConnected');
+            this.player_.trigger('castConnected', isAutoJoined);
             this.addClass('connected');
             this.removeClass('error');
         }
     }, {
         key: 'onSessionUpdate',
         value: function onSessionUpdate(isAlive) {
-            if (!this.player_.apiMedia) {
-                return;
-            }
             if (!isAlive) {
                 return this.onStopAppSuccess();
             }
+
+            if (this.apiMedia != this.apiSession.media[0]) {
+                this.joinCastSession(this.apiSession.media[0]);
+            }
+        }
+    }, {
+        key: 'joinCastSession',
+        value: function joinCastSession(media) {
+            // Force to JS to make a deep copy of String
+            this.oldTech = (' ' + this.player_.techName_).slice(1);
+            this.oldSrc = this.player_.currentSource();
+
+            var isAutoJoined = true;
+            this.onMediaDiscovered(media, isAutoJoined);
         }
     }, {
         key: 'stopCasting',
@@ -429,10 +447,11 @@ var Chromecast = (function (_Tech) {
         });
 
         // Load to VideoJS Remote Audio and Text Tracks
-        this.loadTracks();
-
-        this.update();
-        this.triggerReady();
+        this.one('playing', function () {
+            _this.loadTracks();
+            _this.update();
+            _this.triggerReady();
+        });
     }
 
     _createClass(Chromecast, [{
@@ -441,10 +460,10 @@ var Chromecast = (function (_Tech) {
             var _this2 = this;
 
             var tracks = this.apiMedia.media.tracks;
-            var activeTracksId = this.apiMedia.activeTrackIds;
+            var activeTracksIds = this.apiMedia.activeTrackIds;
 
             tracks.forEach(function (track) {
-                var isActive = activeTracksId.indexOf(track.trackId) > -1;
+                var isActive = activeTracksIds && activeTracksIds.indexOf(track.trackId) > -1;
 
                 if (track.type === chrome.cast.media.TrackType.AUDIO) {
                     _this2.createAudioTrack_(track, isActive);
@@ -540,7 +559,7 @@ var Chromecast = (function (_Tech) {
             }
 
             if (!this.activeTracks || JSON.stringify(this.activeTracks.sort()) !== JSON.stringify(this.apiMedia.activeTrackIds.sort())) {
-                this.onActiveTrackChange(this.apiMedia.activeTrackIds);
+                this.onActiveTrackChange(this.apiMedia.activeTrackIds || []);
                 this.activeTracks = this.apiMedia.activeTrackIds;
             }
 
