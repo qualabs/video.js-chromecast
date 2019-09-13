@@ -50,6 +50,7 @@ var ChromeCastButton = (function (_Button) {
         options.metadata = player.options_.chromecast.metadata;
 
         _get(Object.getPrototypeOf(ChromeCastButton.prototype), 'constructor', this).call(this, player, options);
+        this.oldTech = 'Html5';
         this.hide();
         this.initializeApi();
         player.chromecast = this;
@@ -112,11 +113,11 @@ var ChromeCastButton = (function (_Button) {
         value: function castError(_castError) {
 
             var error = {
-                code: _castError.code,
+                code: _castError.code || _castError.message,
                 message: _castError.description
             };
 
-            switch (_castError.code) {
+            switch (error.code) {
                 case chrome.cast.ErrorCode.API_NOT_INITIALIZED:
                 case chrome.cast.ErrorCode.EXTENSION_MISSING:
                 case chrome.cast.ErrorCode.EXTENSION_NOT_COMPATIBLE:
@@ -223,8 +224,8 @@ var ChromeCastButton = (function (_Button) {
 
             mediaInfo.textTrackStyle = new chrome.cast.media.TextTrackStyle();
             mediaInfo.textTrackStyle.foregroundColor = '#FFFFFF';
-            mediaInfo.textTrackStyle.backgroundColor = '#00000060';
-            mediaInfo.textTrackStyle.edgeType = chrome.cast.media.TextTrackEdgeType.DROP_SHADOW;
+            mediaInfo.textTrackStyle.backgroundColor = '#00000001';
+            mediaInfo.textTrackStyle.edgeType = chrome.cast.media.TextTrackEdgeType.DEPRESSED;
             mediaInfo.textTrackStyle.windowType = chrome.cast.media.TextTrackWindowType.ROUNDED_CORNERS;
 
             // Request load media source
@@ -234,7 +235,7 @@ var ChromeCastButton = (function (_Button) {
             loadRequest.currentTime = this.player_.currentTime();
 
             // Force to JS to make a deep copy of String
-            this.oldTech = (' ' + this.player_.techName_).slice(1);
+            // this.oldTech = (' ' + this.player_.techName_).slice(1)
             this.oldSrc = this.player_.currentSource();
 
             this.apiSession.loadMedia(loadRequest, this.onMediaDiscovered.bind(this), this.castError.bind(this));
@@ -277,7 +278,7 @@ var ChromeCastButton = (function (_Button) {
         key: 'joinCastSession',
         value: function joinCastSession(media) {
             // Force to JS to make a deep copy of String
-            this.oldTech = (' ' + this.player_.techName_).slice(1);
+            // this.oldTech = (' ' + this.player_.techName_).slice(1);
             this.oldSrc = this.player_.currentSource();
 
             var isAutoJoined = true;
