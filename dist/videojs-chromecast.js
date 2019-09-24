@@ -138,6 +138,7 @@ var ChromeCastButton = (function (_Button) {
                     this.addClass('error');
                     break;
                 case chrome.cast.ErrorCode.CANCEL:
+                    this.player_.trigger('castCancelled');
                     break;
                 default:
                     this.player_.error(error);
@@ -209,7 +210,7 @@ var ChromeCastButton = (function (_Button) {
 
             _videoJs2['default'].log('Session initialized: ' + session.sessionId + ' source : ' + source + ' type : ' + type);
 
-            mediaInfo = new chrome.cast.media.MediaInfo(source.src, source.type);
+            mediaInfo = new chrome.cast.media.MediaInfo(source.src || 'casting', source.type || '');
 
             if (this.customData) {
                 mediaInfo.customData = _extends({}, mediaInfo.customData, this.customData);

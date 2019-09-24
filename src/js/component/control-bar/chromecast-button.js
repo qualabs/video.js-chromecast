@@ -101,6 +101,7 @@ class ChromeCastButton extends Button {
                 this.addClass('error');
                 break;
             case chrome.cast.ErrorCode.CANCEL:
+                this.player_.trigger('castCancelled')
                 break;
             default:
                 this.player_.error(error);
@@ -168,7 +169,7 @@ class ChromeCastButton extends Button {
 
         videojs.log('Session initialized: ' + session.sessionId + ' source : ' + source + ' type : ' + type);
 
-        mediaInfo = new chrome.cast.media.MediaInfo(source.src, source.type);
+        mediaInfo = new chrome.cast.media.MediaInfo(source.src || 'casting', source.type || '');
 
         if (this.customData) {
           mediaInfo.customData = {...mediaInfo.customData, ...this.customData}
