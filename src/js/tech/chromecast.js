@@ -41,9 +41,21 @@ class Chromecast extends Tech {
         // Load to VideoJS Remote Audio and Text Tracks
         this.one('playing', () => {
           this.loadTracks();
+          this.loadVolume();
           this.update();
           this.triggerReady();
         });
+    }
+
+    loadVolume () {
+        const {volume} = this.apiMedia;
+
+        if (volume) {
+            this.volume_ = volume.level;
+            this.muted_ = volume.muted;
+            
+            this.trigger('volumechange');
+        }
     }
 
     loadTracks () {

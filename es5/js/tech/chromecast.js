@@ -65,12 +65,25 @@ var Chromecast = (function (_Tech) {
         // Load to VideoJS Remote Audio and Text Tracks
         this.one('playing', function () {
             _this.loadTracks();
+            _this.loadVolume();
             _this.update();
             _this.triggerReady();
         });
     }
 
     _createClass(Chromecast, [{
+        key: 'loadVolume',
+        value: function loadVolume() {
+            var volume = this.apiMedia.volume;
+
+            if (volume) {
+                this.volume_ = volume.level;
+                this.muted_ = volume.muted;
+
+                this.trigger('volumechange');
+            }
+        }
+    }, {
         key: 'loadTracks',
         value: function loadTracks() {
             var _this2 = this;
