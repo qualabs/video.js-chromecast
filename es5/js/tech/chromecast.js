@@ -135,20 +135,22 @@ var Chromecast = (function (_Tech) {
     }, {
         key: 'createTextTrack_',
         value: function createTextTrack_(track, isActive) {
-            var mode = isActive ? 'showing' : 'disabled';
+            if (track.language) {
+                var mode = isActive ? 'showing' : 'disabled';
 
-            var textTrack = new _videoJs2['default'].TextTrack({
-                id: track.trackId,
-                tech: this,
-                kind: 'subtitles',
-                mode: mode, // disabled, hidden, showing
-                label: track.language,
-                language: track.language,
-                srclang: track.language,
-                'default': false // Video.js will choose the first track that is marked as default and turn it on
-            });
+                var textTrack = new _videoJs2['default'].TextTrack({
+                    id: track.trackId,
+                    tech: this,
+                    kind: 'subtitles',
+                    mode: mode, // disabled, hidden, showing
+                    label: track.language,
+                    language: track.language,
+                    srclang: track.language,
+                    'default': false // Video.js will choose the first track that is marked as default and turn it on
+                });
 
-            this.textTracks().addTrack(textTrack);
+                this.textTracks().addTrack(textTrack);
+            }
         }
     }, {
         key: 'createEl',

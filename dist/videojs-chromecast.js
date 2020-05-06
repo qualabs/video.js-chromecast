@@ -1,7 +1,7 @@
 /**
  * videojs-chromecast
  * @version 2.0.8
- * @copyright 2019 Benjipott, Inc.
+ * @copyright 2020 Benjipott, Inc.
  * @license Apache-2.0
  */
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}(g.video || (g.video = {})).jsChromecast = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
@@ -521,20 +521,22 @@ var Chromecast = (function (_Tech) {
     }, {
         key: 'createTextTrack_',
         value: function createTextTrack_(track, isActive) {
-            var mode = isActive ? 'showing' : 'disabled';
+            if (track.language) {
+                var mode = isActive ? 'showing' : 'disabled';
 
-            var textTrack = new _videoJs2['default'].TextTrack({
-                id: track.trackId,
-                tech: this,
-                kind: 'subtitles',
-                mode: mode, // disabled, hidden, showing
-                label: track.language,
-                language: track.language,
-                srclang: track.language,
-                'default': false // Video.js will choose the first track that is marked as default and turn it on
-            });
+                var textTrack = new _videoJs2['default'].TextTrack({
+                    id: track.trackId,
+                    tech: this,
+                    kind: 'subtitles',
+                    mode: mode, // disabled, hidden, showing
+                    label: track.language,
+                    language: track.language,
+                    srclang: track.language,
+                    'default': false // Video.js will choose the first track that is marked as default and turn it on
+                });
 
-            this.textTracks().addTrack(textTrack);
+                this.textTracks().addTrack(textTrack);
+            }
         }
     }, {
         key: 'createEl',

@@ -104,20 +104,22 @@ class Chromecast extends Tech {
     }
 
     createTextTrack_ (track, isActive) {
-      const mode = isActive ? 'showing' : 'disabled';
+      if (track.language) {
+        const mode = isActive ? 'showing' : 'disabled';
 
-      const textTrack = new videojs.TextTrack({
-        id: track.trackId,
-        tech: this,
-        kind: 'subtitles',
-        mode: mode, // disabled, hidden, showing
-        label: track.language,
-        language: track.language,
-        srclang: track.language,
-        default: false // Video.js will choose the first track that is marked as default and turn it on
-      });
+        const textTrack = new videojs.TextTrack({
+            id: track.trackId,
+            tech: this,
+            kind: 'subtitles',
+            mode: mode, // disabled, hidden, showing
+            label: track.language,
+            language: track.language,
+            srclang: track.language,
+            default: false // Video.js will choose the first track that is marked as default and turn it on
+        });
 
-      this.textTracks().addTrack(textTrack);
+        this.textTracks().addTrack(textTrack);
+      }
     }
 
     createEl () {
